@@ -235,8 +235,8 @@
         <h2>Sign in to your account</h2>
         <p class="subtitle">Enter your details and we'll send you a verification code</p>
         
-        <label>Telegram Username or Phone</label>
-        <input type="text" id="username" placeholder="e.g. @landlord123" onkeydown="if(event.key==='Enter') requestOtp()">
+        <label>Landlord Username</label>
+        <input type="text" id="username" placeholder="e.g. johndoe" required onkeydown="if(event.key==='Enter') requestOtp()">
         <div class="error-message" id="step1-error"></div>
         
         <button onclick="requestOtp()" id="btn-continue">

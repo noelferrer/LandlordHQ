@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin - LandlordHQ</title>
+    <!-- Use same branding styles as the main app -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --surface: #ffffff;
+            --bg: #F3F4F6;
+            --text-main: #111827;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --success: #10B981;
+            --radius-md: 0.5rem;
+            --radius-lg: 1rem;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --font-main: 'Inter', sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; color: var(--text-main); }
+        
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th { color: var(--text-muted); font-weight: 500; }
+
+        .code {
+            font-family: var(--font-mono);
+            background: var(--bg);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .badge-active { background: #D1FAE5; color: #065F46; }
+        .badge-claimed { background: #F3F4F6; color: #374151; }
+        
+        #error-banner {
+            display: none;
+            background: #FEE2E2;
+            color: #991B1B;
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="app-content" style="display: none;">
+        <div class="header">
+            <h1>Super Admin Hub</h1>
+            <a href="/" style="color:var(--text-muted); text-decoration:none;"><i class="ri-arrow-left-line"></i> Back to Dashboard</a>
+        </div>
+        
+        <div id="error-banner"></div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <div>
+                    <h2 style="margin: 0; font-size: 1.2rem;">Landlord Invites</h2>
+                    <p style="margin: 0.5rem 0 0 0; color: var(--text-muted); font-size: 0.9rem;">Generate registration codes to onboard paying landlords.</p>
+                </div>
+                <button onclick="generateInvite()">
+                    <i class="ri-add-line"></i> Generate Invite
+                </button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Invite Code</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th>Claimed By</th>
+                    </tr>
+                </thead>
+                <tbody id="invites-body">
+                    <!-- Javascript will populate -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('landlordhq_token');
+        
+        // Immediate auth check
+        if (!token) {
+            window.location.href = '/login';
+        } else {
+            // Unhide UI
+            document.getElementById('app-content').style.display = 'block';
+            loadInvites();
+        }
+
+        function showError(msg) {
+            const b = document.getElementById('error-banner');
+            b.innerText = msg;
+            b.style.display = 'block';
+        }
+
+        async function fetchAPI(endpoint, options = {}) {
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
+            const res = await fetch(endpoint, options);
+            if (res.status === 401 || res.status === 403) {
+                // Not super admin, kick to dashboard
+                window.location.href = '/'; 
+                return null;
+            }
+            return res.json();
+        }
+
+        function formatD(isoString) {
+            if (!isoString) return '--';
+            const d = new Date(isoString);
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        async function loadInvites() {
+            const invites = await fetchAPI('/api/super/invites');
+            if (!invites) return; // kicked out
+            
+            const tbody = document.getElementById('invites-body');
+            
+            if(invites.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;">No invites generated yet.</td></tr>';
+                return;
+            }
+
+            // sort newest first
+            invites.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            tbody.innerHTML = invites.map(i => `
+                <tr>
+                    <td><span class="code">${i.code}</span></td>
+                    <td>${formatD(i.createdAt)}</td>
+                    <td><span class="badge ${i.status === 'active' ? 'badge-active' : 'badge-claimed'}">${i.status.toUpperCase()}</span></td>
+                    <td>${i.claimedBy || '--'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function generateInvite() {
+            const res = await fetchAPI('/api/super/invites', { method: 'POST' });
+            if (res && res.success) {
+                loadInvites();
+            } else if (res) {
+                showError(res.error || "Failed to generate invite.");
+            }
+        }
+    </script>
+</body>
+</html>

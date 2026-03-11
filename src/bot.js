@@ -21,16 +21,46 @@ const bot = new Telegraf(token);
 const fallbackOwnerId = process.env.OWNER_TELEGRAM_ID ? parseInt(process.env.OWNER_TELEGRAM_ID) : null;
 
 // Middleware to check if the user is an admin
+const getAdmin = (ctx) => {
+    return db.get('admins').find({ telegramId: ctx.from.id.toString() }).value() 
+           || (fallbackOwnerId && ctx.from.id === fallbackOwnerId ? { telegramId: fallbackOwnerId.toString(), id: 'legacy' } : null);
+};
+
 const isAdmin = (ctx, next) => {
-    const admin = db.get('admins').find({ telegramId: ctx.from.id.toString() }).value() 
-               || (fallbackOwnerId && ctx.from.id === fallbackOwnerId ? { telegramId: fallbackOwnerId.toString(), id: 'legacy' } : null);
-    
+    const admin = getAdmin(ctx);
     if (admin) {
         ctx.admin = admin; // Attach admin context
         return next();
     }
     return ctx.reply("❌ Unauthorized. This command is for Unit Owners only.");
 };
+
+// --- Landlord Claiming Command ---
+bot.command('claim', (ctx) => {
+    const args = ctx.message.text.split(' ').slice(1);
+    if (args.length < 1) return ctx.reply("Usage: /claim <username>");
+
+    const username = args[0].toLowerCase();
+    
+    // Find the dormant admin
+    const admin = db.get('admins').find({ username }).value();
+    
+    if (!admin) {
+        return ctx.reply(`❌ Registration not found for username: ${username}`);
+    }
+    
+    if (admin.telegramId) {
+        return ctx.reply(`⚠️ This account has already been claimed.`);
+    }
+
+    // Securely attach this telegram ID to the admin account
+    db.get('admins')
+      .find({ username })
+      .assign({ telegramId: ctx.from.id.toString() })
+      .write();
+
+    ctx.reply(`✅ **Account Activated!**\n\nWelcome, ${admin.name}. Your LandlordHQ account is now linked to this Telegram profile.\n\nYou can now log in to the dashboard using your username: \`${username}\``, { parse_mode: 'Markdown' });
+});
 
 // --- Tenant Commands ---
 

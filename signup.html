@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landlord Registration - LandlordHQ</title>
+    <!-- Use same branding styles as the main app -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --surface: #ffffff;
+            --bg: #F3F4F6;
+            --text-main: #111827;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --success: #10B981;
+            --radius-md: 0.5rem;
+            --radius-lg: 1rem;
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --font-main: 'Inter', sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .login-card {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 440px;
+            padding: 3rem 2.5rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .logo-container {
+            width: 64px;
+            height: 64px;
+            background: rgba(79, 70, 229, 0.1);
+            color: var(--primary);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 1.5rem auto;
+        }
+
+        h1 { margin: 0 0 0.5rem 0; font-size: 1.75rem; color: var(--text-main); font-weight: 700; }
+        p.subtitle { color: var(--text-muted); margin: 0 0 2.5rem 0; font-size: 0.95rem; }
+
+        .input-group {
+            text-align: left;
+            margin-bottom: 1.25rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 0.95rem;
+            font-family: var(--font-main);
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .btn-submit {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 0.875rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-submit:hover { background-color: var(--primary-hover); }
+
+        .error-message {
+            color: #DC2626;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            display: none;
+            font-weight: 500;
+        }
+
+        .success-box {
+            display: none;
+            background: #ECFDF5;
+            border: 1px solid #A7F3D0;
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            text-align: left;
+            margin-top: 2rem;
+        }
+
+        .success-box h3 { color: #065F46; margin: 0 0 1rem 0; display: flex; align-items: center; gap: 0.5rem; }
+        .success-box p { color: #047857; font-size: 0.95rem; list-style-type: decimal; margin: 0 0 0.5rem 0; line-height: 1.5; }
+        .code-box {
+            background: #ffffff;
+            border: 2px dashed #34D399;
+            padding: 1rem;
+            text-align: center;
+            border-radius: var(--radius-md);
+            margin: 1rem 0;
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="logo-container">
+            <i class="ri-building-4-fill"></i>
+        </div>
+        <h1>Landlord Registration</h1>
+        <p class="subtitle">Create your account using your secure invite code.</p>
+
+        <form id="register-form" onsubmit="event.preventDefault(); submitRegistration();">
+            <div class="input-group">
+                <label>Invite Code</label>
+                <input type="text" id="code" placeholder="e.g. INV-XXXXXX" required autocomplete="off">
+            </div>
+            
+            <div class="input-group">
+                <label>Full Name or Company Name</label>
+                <input type="text" id="name" placeholder="John Doe Properties" required autocomplete="name">
+            </div>
+
+            <div class="input-group">
+                <label>Desired Username (used to login)</label>
+                <input type="text" id="username" placeholder="johndoe" required autocomplete="username">
+            </div>
+
+            <div class="error-message" id="error-msg"></div>
+
+            <button type="submit" class="btn-submit" id="btn-submit">
+                <span class="btn-text">Create Account</span>
+                <div class="loading-spinner"></div>
+            </button>
+        </form>
+
+        <div class="success-box" id="success-state">
+            <h3><i class="ri-checkbox-circle-fill"></i> Account Created!</h3>
+            <p><strong>Step 1:</strong> Open Telegram on your phone or desktop.</p>
+            <p><strong>Step 2:</strong> Search for our bot <strong>@YourCondoBot</strong></p>
+            <p><strong>Step 3:</strong> Send the bot the following command exactly as written to link your account:</p>
+            <div class="code-box" id="claim-command">/claim username</div>
+            <p style="font-size: 0.85rem; margin-top: 1rem; text-align: center;">Once sending that message, you can securely log into your dashboard.</p>
+            
+            <a href="/login" class="btn-submit" style="text-decoration:none; margin-top:1.5rem;">Go to Login</a>
+        </div>
+        
+        <div style="margin-top: 2rem; font-size: 0.85rem; color: var(--text-muted);">
+            Already have an account? <a href="/login" style="color: var(--primary); font-weight: 500; text-decoration: none;">Log In</a>
+        </div>
+    </div>
+
+    <script>
+        async function submitRegistration() {
+            const code = document.getElementById('code').value.trim();
+            const name = document.getElementById('name').value.trim();
+            const username = document.getElementById('username').value.trim().toLowerCase();
+            
+            const btn = document.getElementById('btn-submit');
+            const err = document.getElementById('error-msg');
+            
+            err.style.display = 'none';
+            btn.querySelector('.btn-text').style.display = 'none';
+            btn.querySelector('.loading-spinner').style.display = 'block';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, name, username })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('register-form').style.display = 'none';
+                    document.getElementById('claim-command').innerText = `/claim ${username}`;
+                    document.getElementById('success-state').style.display = 'block';
+                } else {
+                    err.innerText = data.error || "Registration failed.";
+                    err.style.display = 'block';
+                }
+            } catch (error) {
+                err.innerText = "Network error. Try again.";
+                err.style.display = 'block';
+            } finally {
+                btn.querySelector('.btn-text').style.display = 'inline';
+                btn.querySelector('.loading-spinner').style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

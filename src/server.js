@@ -210,6 +210,7 @@ const authenticateAdmin = (req, res, next) => {
 
     // Attach admin context to the request
     const admin = db.get('admins').find({ id: session.adminId }).value();
+    
     if (!admin) {
         return res.status(401).json({ success: false, error: "Admin account not found." });
     }
@@ -217,6 +218,93 @@ const authenticateAdmin = (req, res, next) => {
     req.admin = admin;
     next();
 };
+
+const authenticateSuperAdmin = (req, res, next) => {
+    authenticateAdmin(req, res, () => {
+        // The core owner specified in the .env file is the only true super admin
+        if (req.admin.telegramId !== process.env.OWNER_TELEGRAM_ID) {
+            return res.status(403).json({ success: false, error: 'Forbidden: Super Admin only' });
+        }
+        next();
+    });
+};
+
+// --- Super Admin Endpoints ---
+app.get('/super', (req, res) => {
+    res.sendFile(path.join(__dirname, '../super.html'));
+});
+
+// Generate a new invite code
+app.post('/api/super/invites', authenticateSuperAdmin, (req, res) => {
+    // Math.random base 36 generates strings like "0.7b93k..." we substring to get "7B93K2"
+    const code = 'INV-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    // Store it in the DB
+    if (!db.get('invites').value()) db.set('invites', []).write();
+    
+    const invite = {
+        code,
+        status: 'active', // active, claimed
+        createdAt: new Date().toISOString(),
+        claimedBy: null,
+        claimedAt: null
+    };
+    
+    db.get('invites').push(invite).write();
+    res.json({ success: true, invite });
+});
+
+// List all invite codes
+app.get('/api/super/invites', authenticateSuperAdmin, (req, res) => {
+    const invites = db.get('invites').value() || [];
+    res.json(invites);
+});
+
+// --- Public Registration API ---
+app.get('/signup', (req, res) => res.sendFile(path.join(__dirname, '../signup.html')));
+app.get('/register', (req, res) => res.redirect('/signup'));
+
+app.post('/api/register', (req, res) => {
+    const { code, name, username } = req.body;
+
+    if (!code || !name || !username) {
+        return res.status(400).json({ success: false, error: 'All fields are required.' });
+    }
+
+    // Check if invite exists and is active
+    let invites = db.get('invites').value() || [];
+    const invite = invites.find(i => i.code === code.trim().toUpperCase());
+
+    if (!invite || invite.status !== 'active') {
+        return res.status(400).json({ success: false, error: 'Invalid or already claimed invite code.' });
+    }
+
+    // Check if username is taken
+    let admins = db.get('admins').value() || [];
+    const usernameTaken = admins.some(a => a.username.toLowerCase() === username.toLowerCase());
+    
+    if (usernameTaken) {
+        return res.status(400).json({ success: false, error: 'Username is already taken.' });
+    }
+
+    // Create dormant admin (telegramId is null until they /claim)
+    const newAdmin = {
+        id: uuidv4(),
+        username: username.toLowerCase(),
+        name,
+        telegramId: null // Pending claim
+    };
+
+    db.get('admins').push(newAdmin).write();
+
+    // Mark invite as claimed
+    db.get('invites')
+      .find({ code: invite.code })
+      .assign({ status: 'claimed', claimedBy: username, claimedAt: new Date().toISOString() })
+      .write();
+
+    res.json({ success: true, message: 'Account created. Awaiting Telegram claim.' });
+});
 
 // --- API Endpoints ---
 
