@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | Landlord HQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-main: #F7F8FA;
+            --bg-card: #FFFFFF;
+            --border: #E2E8F0;
+            --primary: #2B7AFF;
+            --primary-hover: #1E6BE6;
+            --text-main: #0B1D3A;
+            --text-muted: #64748B;
+            --shadow: 0 8px 24px rgba(11, 29, 58, 0.04);
+            --font-display: 'Sora', sans-serif;
+            --font-body: 'DM Sans', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 460px;
+            padding: 40px 48px;
+            box-shadow: var(--shadow);
+        }
+
+        h2 {
+            font-family: var(--font-display);
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 0;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        p.subtitle {
+            font-size: 15px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-family: var(--font-body);
+            font-weight: 600;
+            color: #1E293B;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background-color: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            color: var(--text-main);
+            font-family: var(--font-body);
+            font-size: 16px;
+            transition: all 0.2s ease;
+            margin-bottom: 24px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.01);
+        }
+        
+        input[type="text"]::placeholder {
+            color: #94A3B8;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(43, 122, 255, 0.1);
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 16px 0;
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.2px;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        /* Step 2 Inputs */
+        .otp-inputs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            width: 100%;
+        }
+
+        .otp-inputs input {
+            flex: 1;
+            width: 0;
+            height: 64px;
+            padding: 0;
+            text-align: center;
+            font-size: 24px;
+            font-family: var(--font-display);
+            font-weight: 700;
+            color: #0F172A;
+            background-color: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 0;
+            box-shadow: none;
+            transition: all 0.2s ease;
+        }
+
+        .otp-inputs input:focus,
+        .otp-inputs input.filled {
+            outline: none;
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 0 3px rgba(43, 122, 255, 0.1);
+        }
+
+        #step2 {
+            display: none;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 24px;
+            font-size: 14px;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.2s;
+            font-weight: 500;
+        }
+        
+        .footer-links a:hover {
+            color: var(--text-main);
+        }
+        
+        .error-message {
+            color: #ef4444;
+            font-size: 14px;
+            margin-top: -12px;
+            margin-bottom: 16px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <svg width="240" height="52" viewBox="0 0 280 52" fill="none">
+            <rect x="4" y="8" width="20" height="36" rx="3" fill="#2B7AFF"/>
+            <rect x="28" y="2" width="20" height="42" rx="3" fill="#F5A623"/>
+            <rect x="9" y="14" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="9" y="21" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="9" y="28" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="15" y="14" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="15" y="21" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="15" y="28" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="33" y="9" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="33" y="16" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="33" y="23" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="39" y="9" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="39" y="16" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="39" y="23" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <text x="60" y="34" font-family="Sora, sans-serif" font-size="26" font-weight="700" fill="#0B1D3A">Landlord</text>
+            <text x="187" y="34" font-family="Sora, sans-serif" font-size="26" font-weight="400" fill="rgba(11,29,58,0.4)">HQ</text>
+        </svg>
+    </div>
+
+    <div class="card" id="step1">
+        <h2>Sign in to your account</h2>
+        <p class="subtitle">Enter your details and we'll send you a verification code</p>
+        
+        <label>Telegram Username or Phone</label>
+        <input type="text" id="username" placeholder="e.g. @landlord123" onkeydown="if(event.key==='Enter') requestOtp()">
+        <div class="error-message" id="step1-error"></div>
+        
+        <button onclick="requestOtp()" id="btn-continue">
+            <span class="btn-text">Continue</span>
+            <div class="loading-spinner"></div>
+            <i class="fas fa-arrow-right btn-icon"></i>
+        </button>
+        
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 24px;">
+            By signing in, you agree to our Terms of Service and Privacy Policy.
+        </div>
+    </div>
+
+    <div class="card" id="step2">
+        <h2>Check your Telegram</h2>
+        <p class="subtitle">We sent a 6-digit code to you via CondoBot</p>
+        
+        <div class="otp-inputs" id="otp-container">
+            <input type="text" maxlength="1" class="otp-box">
+            <input type="text" maxlength="1" class="otp-box">
+            <input type="text" maxlength="1" class="otp-box">
+            <input type="text" maxlength="1" class="otp-box">
+            <input type="text" maxlength="1" class="otp-box">
+            <input type="text" maxlength="1" class="otp-box">
+        </div>
+        <div class="error-message" id="step2-error"></div>
+        
+        <button onclick="verifyOtp()" id="btn-verify">
+            <span class="btn-text">Verify</span>
+            <div class="loading-spinner"></div>
+        </button>
+        
+        <div class="footer-links">
+            <a onclick="goBack()">&larr; Back</a>
+            <a onclick="requestOtp()">Resend code</a>
+        </div>
+    </div>
+
+    <script>
+        const inputs = document.querySelectorAll('.otp-box');
+        
+        inputs.forEach((input, index) => {
+            // Toggle filled class
+            function toggleFilled() {
+                if (input.value.length > 0) {
+                    input.classList.add('filled');
+                } else {
+                    input.classList.remove('filled');
+                }
+            }
+
+            input.addEventListener('input', toggleFilled);
+
+            input.addEventListener('keyup', function(e) {
+                toggleFilled();
+                if(e.key >= 0 && e.key <= 9 && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                } else if(e.key === 'Backspace' && index > 0 && !this.value) {
+                    inputs[index - 1].focus();
+                } else if(e.key === 'Enter') {
+                    verifyOtp();
+                }
+            });
+            // Handle pasting 6 digits
+            input.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedData = e.clipboardData.getData('text').slice(0, 6).replace(/[^0-9]/g, '');
+                if (pastedData) {
+                    for (let i = 0; i < pastedData.length; i++) {
+                        inputs[i].value = pastedData[i];
+                        inputs[i].classList.add('filled');
+                    }
+                    if (pastedData.length === 6) {
+                        inputs[5].focus();
+                        verifyOtp();
+                    } else {
+                        inputs[pastedData.length].focus();
+                    }
+                }
+            });
+        });
+
+        async function requestOtp() {
+            const username = document.getElementById('username').value;
+            if(!username) return;
+
+            const btn = document.getElementById('btn-continue');
+            const err = document.getElementById('step1-error');
+            
+            err.style.display = 'none';
+            btn.querySelector('.btn-text').style.display = 'none';
+            btn.querySelector('.btn-icon').style.display = 'none';
+            btn.querySelector('.loading-spinner').style.display = 'block';
+
+            try {
+                const res = await fetch('/api/auth/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('step1').style.display = 'none';
+                    document.getElementById('step2').style.display = 'block';
+                    inputs[0].focus();
+                } else {
+                    err.innerText = data.error || "Failed to send code.";
+                    err.style.display = 'block';
+                }
+            } catch (error) {
+                err.innerText = "Network error. Try again.";
+                err.style.display = 'block';
+            } finally {
+                btn.querySelector('.btn-text').style.display = 'inline';
+                btn.querySelector('.btn-icon').style.display = 'inline';
+                btn.querySelector('.loading-spinner').style.display = 'none';
+            }
+        }
+
+        async function verifyOtp() {
+            let code = Array.from(inputs).map(i => i.value).join('');
+            if(code.length !== 6) return;
+
+            const btn = document.getElementById('btn-verify');
+            const err = document.getElementById('step2-error');
+            
+            err.style.display = 'none';
+            btn.querySelector('.btn-text').style.display = 'none';
+            btn.querySelector('.loading-spinner').style.display = 'block';
+
+            try {
+                const username = document.getElementById('username').value;
+                const res = await fetch('/api/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, username })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    localStorage.setItem('landlordhq_token', data.token);
+                    window.location.href = '/';
+                } else {
+                    err.innerText = data.error || "Invalid code.";
+                    err.style.display = 'block';
+                    inputs.forEach(i => i.value = '');
+                    inputs[0].focus();
+                }
+            } catch (error) {
+                err.innerText = "Network error. Try again.";
+                err.style.display = 'block';
+            } finally {
+                btn.querySelector('.btn-text').style.display = 'inline';
+                btn.querySelector('.loading-spinner').style.display = 'none';
+            }
+        }
+
+        function goBack() {
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step1').style.display = 'block';
+        }
+        
+        // Auto-redirect if already logged in AND token is valid
+        const token = localStorage.getItem('landlordhq_token');
+        if (token) {
+            fetch('/api/tenants', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => {
+                if (res.ok) window.location.href = '/';
+                else localStorage.removeItem('landlordhq_token'); // Clear invalid token
+            })
+            .catch(err => console.error("Verify error:", err));
+        }
+    </script>
+</body>
+</html>

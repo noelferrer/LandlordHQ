@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LandlordHQ — Brand Identity Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0B1D3A;
+    --navy-mid: #132B52;
+    --electric: #2B7AFF;
+    --electric-light: #5A9BFF;
+    --gold: #F5A623;
+    --gold-soft: #FCEBD0;
+    --white: #FFFFFF;
+    --off-white: #F7F8FA;
+    --slate: #64748B;
+    --light-border: #E2E8F0;
+    --success: #22C55E;
+    --font-display: 'Sora', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--off-white);
+    color: var(--navy);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    background: var(--navy);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -20%; left: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(43,122,255,0.12) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -15%; right: -5%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .cover-content {
+    position: relative; z-index: 1;
+    text-align: center;
+    animation: fadeUp 1s ease-out;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .logo-main {
+    margin-bottom: 32px;
+  }
+
+  .cover h2 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 18px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--electric-light);
+    margin-bottom: 8px;
+  }
+
+  .cover h3 {
+    font-family: var(--font-body);
+    font-weight: 400;
+    font-size: 15px;
+    color: var(--slate);
+    letter-spacing: 1px;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 80px 40px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--electric);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--navy);
+  }
+
+  .section-desc {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--slate);
+    max-width: 640px;
+    margin-bottom: 48px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--light-border);
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ── LOGO SECTION ── */
+  .logo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .logo-card {
+    border-radius: 16px;
+    padding: 60px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    position: relative;
+  }
+
+  .logo-card.dark { background: var(--navy); }
+  .logo-card.light { background: var(--white); border: 1px solid var(--light-border); }
+  .logo-card.electric { background: var(--electric); }
+  .logo-card.gold-bg { background: var(--gold-soft); }
+
+  .logo-card-label {
+    position: absolute;
+    bottom: 16px;
+    left: 20px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
+
+  .logo-card.dark .logo-card-label { color: var(--white); }
+  .logo-card.light .logo-card-label { color: var(--navy); }
+  .logo-card.electric .logo-card-label { color: rgba(255,255,255,0.7); }
+
+  /* ── LOGO SVG ── */
+  .logo-svg { display: flex; align-items: center; gap: 14px; }
+
+  .logo-icon {
+    width: 48px; height: 48px;
+    position: relative;
+  }
+
+  .logo-wordmark {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-wordmark .hq {
+    font-weight: 400;
+    opacity: 0.6;
+  }
+
+  .logo-sm .logo-icon { width: 36px; height: 36px; }
+  .logo-sm .logo-wordmark { font-size: 22px; }
+
+  /* ── COLORS ── */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+  }
+
+  .color-swatch {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--light-border);
+    background: var(--white);
+  }
+
+  .color-swatch-block {
+    height: 120px;
+  }
+
+  .color-swatch-info {
+    padding: 16px;
+  }
+
+  .color-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .color-hex {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--slate);
+  }
+
+  .color-role {
+    font-size: 11px;
+    color: var(--slate);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  /* ── TYPOGRAPHY ── */
+  .type-showcase {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .type-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 40px;
+    align-items: start;
+    padding: 32px;
+    background: var(--white);
+    border-radius: 16px;
+    border: 1px solid var(--light-border);
+  }
+
+  .type-meta .type-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .type-meta .type-usage {
+    font-size: 12px;
+    color: var(--slate);
+    line-height: 1.5;
+  }
+
+  .type-sample-display {
+    font-family: var(--font-display);
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+
+  .type-sample-body {
+    font-family: var(--font-body);
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--navy-mid);
+    margin-bottom: 8px;
+  }
+
+  .type-sample-mono {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--electric);
+    background: rgba(43,122,255,0.06);
+    padding: 12px 16px;
+    border-radius: 8px;
+    display: inline-block;
+  }
+
+  .type-specimen {
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: var(--slate);
+    margin-top: 8px;
+  }
+
+  /* ── ICON ANATOMY ── */
+  .anatomy-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .anatomy-visual {
+    background: var(--white);
+    border-radius: 20px;
+    border: 1px solid var(--light-border);
+    padding: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .anatomy-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .anatomy-note {
+    display: flex;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .anatomy-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .anatomy-note-text h4 {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .anatomy-note-text p {
+    font-size: 13px;
+    color: var(--slate);
+    line-height: 1.5;
+  }
+
+  /* ── BRAND VOICE ── */
+  .voice-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .voice-card {
+    background: var(--white);
+    border-radius: 16px;
+    border: 1px solid var(--light-border);
+    padding: 32px;
+  }
+
+  .voice-card h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .voice-card p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--slate);
+  }
+
+  .voice-card .emoji {
+    font-size: 28px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  /* ── USAGE EXAMPLES ── */
+  .usage-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .usage-card {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--light-border);
+    background: var(--white);
+  }
+
+  .usage-card-preview {
+    padding: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+  }
+
+  .usage-card-info {
+    padding: 20px 24px;
+    border-top: 1px solid var(--light-border);
+  }
+
+  .usage-card-info h4 {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .usage-card-info p {
+    font-size: 12px;
+    color: var(--slate);
+  }
+
+  /* ── TAGLINE BAR ── */
+  .tagline-bar {
+    background: var(--navy);
+    padding: 80px 40px;
+    text-align: center;
+  }
+
+  .tagline-bar .tagline {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 12px;
+  }
+
+  .tagline-bar .tagline .accent { color: var(--gold); }
+
+  .tagline-bar .sub {
+    font-size: 15px;
+    color: var(--slate);
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    padding: 40px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--slate);
+    font-family: var(--font-mono);
+    letter-spacing: 1px;
+  }
+
+  /* ── APP PREVIEW ── */
+  .app-preview {
+    background: var(--navy);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+  }
+
+  .app-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .app-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .app-body {
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    padding: 24px;
+  }
+
+  .app-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .app-stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .app-stat {
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .app-stat .num {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .app-stat .label {
+    font-size: 10px;
+    color: var(--slate);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 768px) {
+    .logo-grid, .color-grid, .voice-grid, .usage-grid, .anatomy-wrap {
+      grid-template-columns: 1fr;
+    }
+    .color-grid { grid-template-columns: repeat(2, 1fr); }
+    .type-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════ COVER ════════ -->
+<div class="cover">
+  <div class="cover-content">
+    <div class="logo-main">
+      <svg width="280" height="64" viewBox="0 0 280 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Icon: building/key hybrid -->
+        <rect x="4" y="12" width="22" height="40" rx="3" fill="#2B7AFF"/>
+        <rect x="30" y="4" width="22" height="48" rx="3" fill="#F5A623"/>
+        <rect x="10" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="10" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="10" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="16" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="16" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="16" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <!-- Wordmark -->
+        <text x="68" y="42" font-family="Sora, sans-serif" font-size="32" font-weight="700" fill="#FFFFFF">Landlord</text>
+        <text x="216" y="42" font-family="Sora, sans-serif" font-size="32" font-weight="400" fill="rgba(255,255,255,0.5)">HQ</text>
+      </svg>
+    </div>
+    <h2>Brand Identity Guide</h2>
+    <h3>Property Management Automation — Philippines</h3>
+  </div>
+</div>
+
+<!-- ════════ LOGO VARIATIONS ════════ -->
+<div class="section">
+  <div class="section-label">01 — Logo</div>
+  <div class="section-title">Logo System</div>
+  <div class="section-desc">The LandlordHQ logo pairs a twin-building icon with a bold wordmark. The two towers represent the landlord-tenant relationship, unified by automation. "HQ" is set lighter to emphasize it as the command center.</div>
+
+  <div class="logo-grid">
+    <div class="logo-card dark">
+      <svg width="240" height="52" viewBox="0 0 280 52" fill="none">
+        <rect x="4" y="8" width="20" height="36" rx="3" fill="#2B7AFF"/>
+        <rect x="28" y="2" width="20" height="42" rx="3" fill="#F5A623"/>
+        <rect x="9" y="14" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="9" y="21" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="9" y="28" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="15" y="14" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="15" y="21" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="15" y="28" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="33" y="9" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="33" y="16" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="33" y="23" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="9" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="16" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="23" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <text x="60" y="34" font-family="Sora, sans-serif" font-size="26" font-weight="700" fill="#FFFFFF">Landlord</text>
+        <text x="187" y="34" font-family="Sora, sans-serif" font-size="26" font-weight="400" fill="rgba(255,255,255,0.45)">HQ</text>
+      </svg>
+      <span class="logo-card-label" style="color:rgba(255,255,255,0.35)">Primary — Dark</span>
+    </div>
+
+    <div class="logo-card light">
+      <svg width="240" height="52" viewBox="0 0 280 52" fill="none">
+        <rect x="4" y="8" width="20" height="36" rx="3" fill="#2B7AFF"/>
+        <rect x="28" y="2" width="20" height="42" rx="3" fill="#F5A623"/>
+        <rect x="9" y="14" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="9" y="21" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="9" y="28" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="15" y="14" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="15" y="21" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="15" y="28" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="33" y="9" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="33" y="16" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="33" y="23" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="9" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="16" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="23" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <text x="60" y="34" font-family="Sora, sans-serif" font-size="26" font-weight="700" fill="#0B1D3A">Landlord</text>
+        <text x="187" y="34" font-family="Sora, sans-serif" font-size="26" font-weight="400" fill="rgba(11,29,58,0.4)">HQ</text>
+      </svg>
+      <span class="logo-card-label">Primary — Light</span>
+    </div>
+
+    <div class="logo-card electric">
+      <!-- Icon only -->
+      <svg width="80" height="80" viewBox="0 0 56 56" fill="none">
+        <rect x="4" y="12" width="22" height="40" rx="3" fill="rgba(255,255,255,0.95)"/>
+        <rect x="30" y="4" width="22" height="48" rx="3" fill="#F5A623"/>
+        <rect x="10" y="20" width="4" height="4" rx="1" fill="#2B7AFF"/>
+        <rect x="10" y="28" width="4" height="4" rx="1" fill="#2B7AFF"/>
+        <rect x="10" y="36" width="4" height="4" rx="1" fill="#2B7AFF"/>
+        <rect x="16" y="20" width="4" height="4" rx="1" fill="#2B7AFF"/>
+        <rect x="16" y="28" width="4" height="4" rx="1" fill="#2B7AFF"/>
+        <rect x="16" y="36" width="4" height="4" rx="1" fill="#2B7AFF"/>
+        <rect x="36" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+      </svg>
+      <span class="logo-card-label" style="color:rgba(255,255,255,0.5)">Icon Only — App/Favicon</span>
+    </div>
+
+    <div class="logo-card gold-bg">
+      <svg width="240" height="52" viewBox="0 0 280 52" fill="none">
+        <rect x="4" y="8" width="20" height="36" rx="3" fill="#0B1D3A"/>
+        <rect x="28" y="2" width="20" height="42" rx="3" fill="#F5A623"/>
+        <rect x="9" y="14" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.7)"/>
+        <rect x="9" y="21" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.7)"/>
+        <rect x="9" y="28" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.7)"/>
+        <rect x="15" y="14" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.7)"/>
+        <rect x="15" y="21" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.7)"/>
+        <rect x="15" y="28" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.7)"/>
+        <rect x="33" y="9" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="33" y="16" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="33" y="23" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="9" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="16" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="39" y="23" width="3.5" height="3.5" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <text x="60" y="34" font-family="Sora, sans-serif" font-size="26" font-weight="700" fill="#0B1D3A">Landlord</text>
+        <text x="187" y="34" font-family="Sora, sans-serif" font-size="26" font-weight="400" fill="rgba(11,29,58,0.35)">HQ</text>
+      </svg>
+      <span class="logo-card-label" style="color:rgba(11,29,58,0.35)">Alternate — Warm</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════ ICON ANATOMY ════════ -->
+<div class="section">
+  <div class="section-label">02 — Icon Anatomy</div>
+  <div class="section-title">Logo Concept Breakdown</div>
+  <div class="section-desc">Every element of the icon carries meaning tied to property management automation.</div>
+
+  <div class="anatomy-wrap">
+    <div class="anatomy-visual">
+      <svg width="180" height="180" viewBox="0 0 56 56" fill="none">
+        <rect x="4" y="12" width="22" height="40" rx="3" fill="#2B7AFF"/>
+        <rect x="30" y="4" width="22" height="48" rx="3" fill="#F5A623"/>
+        <rect x="10" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="10" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="10" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="16" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="16" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="16" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="36" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+        <rect x="42" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+      </svg>
+    </div>
+    <div class="anatomy-notes">
+      <div class="anatomy-note">
+        <div class="anatomy-dot" style="background:#2B7AFF"></div>
+        <div class="anatomy-note-text">
+          <h4>Blue Tower — The Landlord</h4>
+          <p>Represents the property owner. Electric blue signals trust, technology, and reliability. Slightly shorter — grounded, stable.</p>
+        </div>
+      </div>
+      <div class="anatomy-note">
+        <div class="anatomy-dot" style="background:#F5A623"></div>
+        <div class="anatomy-note-text">
+          <h4>Gold Tower — The Property</h4>
+          <p>Represents the asset being managed. Gold signals value, income, and premium service. Taller — showing growth potential.</p>
+        </div>
+      </div>
+      <div class="anatomy-note">
+        <div class="anatomy-dot" style="background:#FFFFFF; border:1px solid #ccc"></div>
+        <div class="anatomy-note-text">
+          <h4>Window Grid — Data & Units</h4>
+          <p>Each window represents a rental unit, tenant record, or data point. The grid pattern evokes a dashboard — organized, monitored, automated.</p>
+        </div>
+      </div>
+      <div class="anatomy-note">
+        <div class="anatomy-dot" style="background:#0B1D3A"></div>
+        <div class="anatomy-note-text">
+          <h4>Twin Structure — HQ</h4>
+          <p>Two buildings side by side form an "H" negative space, reinforcing the "HQ" — your command center for all properties.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════ COLORS ════════ -->
+<div class="section">
+  <div class="section-label">03 — Color Palette</div>
+  <div class="section-title">Brand Colors</div>
+  <div class="section-desc">A navy foundation signals authority, electric blue drives action, and gold accents convey premium value. Designed for both digital interfaces and print materials.</div>
+
+  <div class="color-grid">
+    <div class="color-swatch">
+      <div class="color-swatch-block" style="background:#0B1D3A"></div>
+      <div class="color-swatch-info">
+        <div class="color-name">Navy Deep</div>
+        <div class="color-hex">#0B1D3A</div>
+        <div class="color-role">Primary background, headers, trust anchor</div>
+      </div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-swatch-block" style="background:#2B7AFF"></div>
+      <div class="color-swatch-info">
+        <div class="color-name">Electric Blue</div>
+        <div class="color-hex">#2B7AFF</div>
+        <div class="color-role">CTA buttons, links, interactive elements</div>
+      </div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-swatch-block" style="background:#F5A623"></div>
+      <div class="color-swatch-info">
+        <div class="color-name">Gold</div>
+        <div class="color-hex">#F5A623</div>
+        <div class="color-role">Highlights, premium features, revenue indicators</div>
+      </div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-swatch-block" style="background:#F7F8FA"></div>
+      <div class="color-swatch-info">
+        <div class="color-name">Off-White</div>
+        <div class="color-hex">#F7F8FA</div>
+        <div class="color-role">Page backgrounds, cards, breathing space</div>
+      </div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-swatch-block" style="background:#64748B"></div>
+      <div class="color-swatch-info">
+        <div class="color-name">Slate</div>
+        <div class="color-hex">#64748B</div>
+        <div class="color-role">Body text, secondary info, metadata</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════ TYPOGRAPHY ════════ -->
+<div class="section">
+  <div class="section-label">04 — Typography</div>
+  <div class="section-title">Type System</div>
+  <div class="section-desc">Three fonts, three jobs. Sora commands attention in headers, DM Sans handles readability, and JetBrains Mono adds technical credibility to data displays.</div>
+
+  <div class="type-showcase">
+    <div class="type-row">
+      <div class="type-meta">
+        <div class="type-name">Sora</div>
+        <div class="type-usage">Display / Headings<br>Weights: 600, 700, 800</div>
+      </div>
+      <div>
+        <div class="type-sample-display">Manage Smarter,<br>Not Harder.</div>
+        <div class="type-specimen">ABCDEFGHIJKLMNOPQRSTUVWXYZ · 0123456789</div>
+      </div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">
+        <div class="type-name">DM Sans</div>
+        <div class="type-usage">Body / UI Copy<br>Weights: 400, 500, 600</div>
+      </div>
+      <div>
+        <div class="type-sample-body">Collect rent, track leases, and manage tenants from one dashboard. Built for Filipino landlords who want their time back.</div>
+        <div class="type-specimen" style="font-family:var(--font-body)">abcdefghijklmnopqrstuvwxyz · 0123456789</div>
+      </div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">
+        <div class="type-name">JetBrains Mono</div>
+        <div class="type-usage">Data / Labels / Code<br>Weights: 400, 500</div>
+      </div>
+      <div>
+        <div class="type-sample-mono">₱ 142,500.00 collected · 12 units · 98% occupancy</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════ BRAND VOICE ════════ -->
+<div class="section">
+  <div class="section-label">05 — Brand Voice</div>
+  <div class="section-title">How LandlordHQ Speaks</div>
+  <div class="section-desc">The voice should feel like a sharp, trusted business partner — not a robot, not a salesman.</div>
+
+  <div class="voice-grid">
+    <div class="voice-card">
+      <span class="emoji">🎯</span>
+      <h4>Direct & Clear</h4>
+      <p>No jargon, no fluff. Filipino landlords are busy — respect their time. Say "Track rent in 2 taps" not "Leverage our comprehensive receivables module."</p>
+    </div>
+    <div class="voice-card">
+      <span class="emoji">🤝</span>
+      <h4>Confident, Not Cocky</h4>
+      <p>We know property management. We've automated the tedious parts. But we never talk down to landlords — they know their business better than anyone.</p>
+    </div>
+    <div class="voice-card">
+      <span class="emoji">⚡</span>
+      <h4>Action-Oriented</h4>
+      <p>Every message should push toward a result. "Set up in 5 minutes." "See your first report today." Verbs over adjectives, always.</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════ USAGE EXAMPLES ════════ -->
+<div class="section">
+  <div class="section-label">06 — Application</div>
+  <div class="section-title">In Context</div>
+  <div class="section-desc">How the brand system comes together across key touchpoints.</div>
+
+  <div class="usage-grid">
+    <div class="usage-card">
+      <div class="usage-card-preview" style="background:var(--navy)">
+        <div class="app-preview" style="padding:20px">
+          <div class="app-bar">
+            <svg width="28" height="28" viewBox="0 0 56 56" fill="none">
+              <rect x="4" y="12" width="22" height="40" rx="3" fill="#2B7AFF"/>
+              <rect x="30" y="4" width="22" height="48" rx="3" fill="#F5A623"/>
+              <rect x="10" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+              <rect x="10" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+              <rect x="16" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+              <rect x="16" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+              <rect x="36" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+              <rect x="36" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+              <rect x="42" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+              <rect x="42" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            </svg>
+            <span style="font-family:Sora,sans-serif;font-weight:700;color:#fff;font-size:14px">LandlordHQ</span>
+          </div>
+          <div class="app-stat-row">
+            <div class="app-stat">
+              <div class="num" style="color:#F5A623">₱142K</div>
+              <div class="label">Collected</div>
+            </div>
+            <div class="app-stat">
+              <div class="num">24</div>
+              <div class="label">Units</div>
+            </div>
+            <div class="app-stat">
+              <div class="num" style="color:#22C55E">98%</div>
+              <div class="label">Occupancy</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="usage-card-info">
+        <h4>Dashboard UI</h4>
+        <p>Dark theme with gold revenue highlights and data-forward layout</p>
+      </div>
+    </div>
+
+    <div class="usage-card">
+      <div class="usage-card-preview" style="background:linear-gradient(135deg, #0B1D3A 0%, #132B52 100%)">
+        <div style="text-align:center;padding:20px">
+          <svg width="48" height="48" viewBox="0 0 56 56" fill="none" style="margin-bottom:16px">
+            <rect x="4" y="12" width="22" height="40" rx="3" fill="#2B7AFF"/>
+            <rect x="30" y="4" width="22" height="48" rx="3" fill="#F5A623"/>
+            <rect x="10" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="10" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="16" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="16" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="36" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="36" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="42" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            <rect x="42" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+          </svg>
+          <div style="font-family:Sora,sans-serif;font-size:20px;font-weight:700;color:#fff;margin-bottom:8px">Stop chasing rent.</div>
+          <div style="font-family:DM Sans,sans-serif;font-size:13px;color:#64748B;margin-bottom:16px">Automate your property management.</div>
+          <div style="display:inline-block;background:#2B7AFF;color:#fff;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;padding:10px 24px;border-radius:8px">Start Free →</div>
+        </div>
+      </div>
+      <div class="usage-card-info">
+        <h4>Social Media Ad</h4>
+        <p>High-contrast CTA with direct messaging</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ TAGLINE ════════ -->
+<div class="tagline-bar">
+  <div class="tagline">Your Properties. <span class="accent">Automated.</span></div>
+  <div class="sub">LandlordHQ is the command center for Filipino landlords and property managers who want to collect rent, track tenants, and grow their portfolio — on autopilot.</div>
+</div>
+
+<!-- ════════ FOOTER ════════ -->
+<div class="footer">
+  LandlordHQ Brand Identity Guide — 2026 — Confidential
+</div>
+
+</body>
+</html>

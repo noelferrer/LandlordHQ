@@ -1,0 +1,14 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+
+# Database (crucial so you don't overwrite production data when pulling!)
+data/db.json
+
+# Mac OS
+.DS_Store
