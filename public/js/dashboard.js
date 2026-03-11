@@ -861,6 +861,8 @@
         // --- Data Refresh ---
         async function refreshDashboard() {
             try {
+                const today = new Date();
+                const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
                 const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` };
 
                 // Check auth first with a single request to avoid redirect loops
@@ -916,9 +918,6 @@
                 if (occBar) occBar.style.width = `${occupancyRate}%`;
 
                 // Filter Overdue Tenants
-                const today = new Date();
-                const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
-                
                 const overdueTenants = tenants.filter(t => {
                     if (t.status === 'Inactive') return false;
                     const dueDay = t.rent_due_day || 1;

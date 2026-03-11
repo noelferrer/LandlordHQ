@@ -22,6 +22,53 @@ app.use(cors({ origin: ALLOWED_ORIGINS }));
 
 app.use(express.json()); // Express 5 built-in, no body-parser needed
 
+// --- Data Migration & Root Admin Setup ---
+const fallbackOwnerId = process.env.OWNER_TELEGRAM_ID; 
+if (fallbackOwnerId) {
+    let admins = db.get('admins').value() || [];
+    let rootAdmin = db.get('admins').find({ telegramId: fallbackOwnerId }).value();
+    
+    // 1. Ensure Root Admin exists
+    if (!rootAdmin) {
+        console.log("🛠️ Root Admin missing. Creating from .env...");
+        rootAdmin = {
+            id: uuidv4(),
+            username: process.env.OWNER_USERNAME || 'admin',
+            telegramId: fallbackOwnerId,
+            name: 'System Admin'
+        };
+        db.get('admins').push(rootAdmin).write();
+    }
+
+    // 2. Map orphaned records to Root Admin
+    const collections = ['tenants', 'tickets', 'payments', 'expenses', 'properties', 'settings'];
+    collections.forEach(col => {
+        let records = db.get(col).value();
+        
+        // Handle 'settings' specifically if it's still a single object
+        if (col === 'settings' && records && !Array.isArray(records)) {
+             records = [ { ...records, adminId: rootAdmin.id } ];
+             db.set('settings', records).write();
+             console.log(`✅ Migrated settings object to array for Root Admin.`);
+             return;
+        }
+
+        if (Array.isArray(records)) {
+            let updated = false;
+            records.forEach(r => {
+                if (!r.adminId) {
+                    r.adminId = rootAdmin.id;
+                    updated = true;
+                }
+            });
+            if (updated) {
+                db.set(col, records).write();
+                console.log(`✅ Migrated orphaned records in '${col}' to Root Admin.`);
+            }
+        }
+    });
+}
+
 // --- Rate Limiter (in-memory, per IP) ---
 const rateLimitStore = new Map();
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -80,22 +127,9 @@ app.post('/api/auth/request', rateLimiter, async (req, res) => {
     // Note: For multi-client, the frontend needs to send the username.
     // If not provided in req.body.username (which login.html currently doesn't, we will fall back to legacy behavior for now to not break the UI before the UI update, then update it)
     let telegramUsername = req.body.username;
-    let fallbackOwnerId = process.env.OWNER_TELEGRAM_ID; 
-
     // Find the admin in DB
-    // To support the transition, if the DB is empty, let's auto-create the root admin from .env
-    let admins = db.get('admins').value() || [];
-    if (admins.length === 0 && fallbackOwnerId) {
-        db.get('admins').push({
-            id: uuidv4(),
-            username: process.env.OWNER_USERNAME || 'admin',
-            telegramId: fallbackOwnerId,
-            name: 'System Admin'
-        }).write();
-    }
-
-    // Now look for the admin by username or fallback to the master ID if not provided.
     let admin = null;
+    
     if (telegramUsername) {
         // Strip @ if present
         telegramUsername = telegramUsername.replace('@', '');
@@ -474,7 +508,7 @@ app.post('/api/properties', authenticateAdmin, (req, res) => {
 app.put('/api/properties/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
     const updates = req.body;
-    const targetId = parseId(id);
+    const targetId = id; // Don't parseId for UUIDs
     console.log(`📝 Update Request for Property ID: ${targetId}`, updates);
 
     const property = db.get('properties').find({ id: targetId, adminId: req.admin.id }).value();
@@ -490,7 +524,7 @@ app.put('/api/properties/:id', authenticateAdmin, (req, res) => {
 
 app.delete('/api/properties/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
-    const targetId = parseId(id);
+    const targetId = id; // Don't parseId for UUIDs
     console.log(`🗑️ Delete Request for Property ID: ${targetId}`);
 
     const property = db.get('properties').find({ id: targetId, adminId: req.admin.id }).value();

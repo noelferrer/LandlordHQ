@@ -27,12 +27,11 @@ db.defaults({
 }).write();
 
 // Migration script block: if settings is still an object (from previous schema), convert it to an array
+// (Logic moved to server.js for safe mapping to root admin)
 const currentSettings = db.get('settings').value();
 if (currentSettings && !Array.isArray(currentSettings)) {
-    // We attach the legacy settings object to an array. 
-    // Usually it needs an adminId, but since it's legacy it's missing it until the admin saves it again.
-    // For now we just convert the structure to avoid crashing the server.
-    db.set('settings', []).write();
+    console.log("⚠️ Settings object detected. server.js will handle migration.");
 }
+
 
 module.exports = db;
