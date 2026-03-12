@@ -1,0 +1,294 @@
+{
+  "admins": [
+    {
+      "id": "demo-admin-uuid",
+      "username": "demo_admin",
+      "name": "Demo Landlord",
+      "telegramId": "618340961"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "69dcc61c-5a9d-4512-8aae-2b72b235e5e9",
+      "adminId": "demo-admin-uuid",
+      "expiresAt": "2026-03-13T02:51:14.880Z"
+    },
+    {
+      "token": "965442f4-3e91-43ac-b228-6f7a6f68efe9",
+      "adminId": "demo-admin-uuid",
+      "expiresAt": "2026-03-13T03:00:14.897Z"
+    }
+  ],
+  "otps": [],
+  "properties": [
+    {
+      "id": "79a727ff-05c6-45f4-810b-cde8974de06d",
+      "adminId": "demo-admin-uuid",
+      "name": "Crystal Towers",
+      "address": "123 Sapphire Ave",
+      "city": "Manila",
+      "state": "MM",
+      "zip": "1000",
+      "type": "Residential",
+      "units": 50,
+      "status": "Active",
+      "description": "Luxury high-rise with skyline views."
+    },
+    {
+      "id": "fcdc6095-41c5-49db-b9e1-59c644600511",
+      "adminId": "demo-admin-uuid",
+      "name": "Emerald Heights",
+      "address": "456 Jade St",
+      "city": "Quezon City",
+      "state": "MM",
+      "zip": "1100",
+      "type": "Commercial",
+      "units": 20,
+      "status": "Active",
+      "description": "Modern office space in the heart of the city."
+    }
+  ],
+  "units": [
+    {
+      "id": "d64bc249-703a-4f9f-86e4-5ac7378d0f36",
+      "adminId": "demo-admin-uuid",
+      "propertyId": "79a727ff-05c6-45f4-810b-cde8974de06d",
+      "unitNumber": "101",
+      "status": "Occupied"
+    },
+    {
+      "id": "53fddc30-96e8-4311-ab05-545f541fc9a3",
+      "adminId": "demo-admin-uuid",
+      "propertyId": "79a727ff-05c6-45f4-810b-cde8974de06d",
+      "unitNumber": "102",
+      "status": "Vacant"
+    },
+    {
+      "id": "0178a495-8098-4ca5-bc6f-61df33fdb196",
+      "adminId": "demo-admin-uuid",
+      "propertyId": "fcdc6095-41c5-49db-b9e1-59c644600511",
+      "unitNumber": "202",
+      "status": "Occupied"
+    }
+  ],
+  "tenants": [
+    {
+      "unit": "101",
+      "name": "Alice Smith",
+      "rent_due_day": 5,
+      "leaseAmount": 15000,
+      "adminId": "demo-admin-uuid",
+      "telegramId": null,
+      "linkCode": "ALICE1",
+      "propertyId": "79a727ff-05c6-45f4-810b-cde8974de06d",
+      "email": "alice@example.com",
+      "phone": "555-0101",
+      "status": "Active",
+      "moveInDate": "2024-01-01"
+    },
+    {
+      "unit": "202",
+      "name": "Bob Johnson",
+      "rent_due_day": 15,
+      "leaseAmount": 12000,
+      "adminId": "demo-admin-uuid",
+      "telegramId": null,
+      "linkCode": "BOB202",
+      "propertyId": "fcdc6095-41c5-49db-b9e1-59c644600511",
+      "email": "bob@example.com",
+      "phone": "555-0202",
+      "status": "Active",
+      "moveInDate": "2024-02-01"
+    },
+    {
+      "id": "f5907357-c3cf-4f6a-bb4e-630e6baeeb73",
+      "unit": "DEMO-916",
+      "name": "Tester (Demo)",
+      "telegramId": "999111222",
+      "adminId": "demo-admin-uuid",
+      "propertyId": "79a727ff-05c6-45f4-810b-cde8974de06d",
+      "linkCode": "DEMO",
+      "leaseAmount": 5000,
+      "rent_due_day": 1,
+      "status": "Active"
+    }
+  ],
+  "tickets": [
+    {
+      "id": "27a07c78-f784-44ef-af5f-fb9c402e7b37",
+      "adminId": "demo-admin-uuid",
+      "unit": "101",
+      "tenantName": "Alice Smith",
+      "issue": "Faucet dripping in kitchen",
+      "status": "open",
+      "timestamp": "2026-03-12T02:50:32.236Z",
+      "media": []
+    },
+    {
+      "id": "21b6af68-5b11-484b-9845-25cc883267db",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "issue": "sfghjys",
+      "media": [],
+      "status": "open",
+      "timestamp": "2026-03-12T03:21:16.831Z"
+    },
+    {
+      "id": "1e05b1ec-ad2d-4232-9017-cbd84fb59ce4",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "issue": "faucet broken",
+      "media": [],
+      "status": "open",
+      "timestamp": "2026-03-12T03:36:05.708Z"
+    },
+    {
+      "id": "6c4894d9-9274-4b23-9119-f098a740c8e2",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "issue": "hdkcgjsjsx",
+      "media": [],
+      "status": "open",
+      "timestamp": "2026-03-12T03:37:31.410Z"
+    },
+    {
+      "id": "8030c71d-ae6a-4bbb-a197-28a48770331c",
+      "adminId": "demo-admin-uuid",
+      "unit": "101",
+      "tenantName": "Alice Smith",
+      "issue": "test",
+      "media": [],
+      "status": "open",
+      "timestamp": "2026-03-12T03:39:17.037Z"
+    },
+    {
+      "id": "58b05baa-e8c4-4c3a-9b0f-4a8e0b058abd",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "issue": "Photo evidence submitted",
+      "media": [
+        {
+          "type": "photo",
+          "fileId": "AgACAgUAAxkBAANXabI4VhYPiS6Q5Q7DKj0YaYpuSDMAAjcNaxtdeJFV0U_P5ycwVJwBAAMCAAN5AAM6BA"
+        }
+      ],
+      "status": "open",
+      "timestamp": "2026-03-12T03:51:50.743Z"
+    },
+    {
+      "id": "3a348feb-23e5-4652-bba6-446e6c026c7c",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "issue": "faucet broken",
+      "media": [],
+      "status": "open",
+      "timestamp": "2026-03-12T04:10:07.828Z"
+    },
+    {
+      "id": "0653ada3-5672-4c1a-8c2d-3fad6f4680c8",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "issue": "lights not turning on",
+      "media": [
+        {
+          "type": "photo",
+          "fileId": "AgACAgUAAxkBAANfabI9M02PD3ByBX0-bz9bLqUwb-4AAk0NaxtdeJFVHhsaRxOFuUYBAAMCAAN5AAM6BA"
+        }
+      ],
+      "status": "open",
+      "timestamp": "2026-03-12T04:12:35.643Z"
+    }
+  ],
+  "payments": [
+    {
+      "id": "a8aa272f-8aea-440b-b777-34b99f21ab34",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "amount": 12000,
+      "method": "bank_transfer",
+      "status": "verified",
+      "timestamp": "2026-03-12T02:50:32.237Z",
+      "type": "manual"
+    },
+    {
+      "id": "d6b0b935-e34f-4536-8dd9-bd31538fb891",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "fileId": "AgACAgUAAxkBAAMpabIul3Pl6dns0n8hAchxubj7ymAAAiQNaxtdeJFVVeKYwxZe66IBAAMCAAN5AAM6BA",
+      "mediaType": "photo",
+      "status": "pending",
+      "timestamp": "2026-03-12T03:21:52.440Z"
+    },
+    {
+      "id": "d15c194f-9dba-4e5d-9164-95b40c6424a8",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "fileId": "admin_photo_123",
+      "mediaType": "photo",
+      "status": "pending",
+      "timestamp": "2026-03-12T03:36:05.711Z"
+    },
+    {
+      "id": "1e4175dd-1df4-41fa-ae18-06a3527d3dc8",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "fileId": "admin_photo_123",
+      "mediaType": "photo",
+      "status": "pending",
+      "timestamp": "2026-03-12T04:10:07.832Z"
+    },
+    {
+      "id": "fc979e59-cac9-44e6-9480-b73e1d8eb349",
+      "adminId": "demo-admin-uuid",
+      "unit": "202",
+      "tenantName": "Bob Johnson",
+      "fileId": "AgACAgUAAxkBAANbabI9CbebVJQVfhePaYRYvsy1nscAAkwNaxtdeJFVk5fEOSfYkJkBAAMCAAN5AAM6BA",
+      "mediaType": "photo",
+      "status": "pending",
+      "timestamp": "2026-03-12T04:11:53.521Z"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "c19fa236-5b64-4f87-a365-0b9301ee7163",
+      "adminId": "demo-admin-uuid",
+      "category": "Maintenance",
+      "amount": 500,
+      "description": "Light bulb replacement",
+      "timestamp": "2026-03-12T02:50:32.237Z"
+    }
+  ],
+  "rules": [
+    {
+      "id": 1,
+      "category": "General",
+      "rule": "Swimming pool is open from 6:00 AM to 10:00 PM."
+    },
+    {
+      "id": 2,
+      "category": "General",
+      "rule": "Visitors must register at the lobby/reception."
+    }
+  ],
+  "settings": [
+    {
+      "adminId": "demo-admin-uuid",
+      "rent_reminder_days_before": 3,
+      "currency": "PHP",
+      "start_text": "Welcome to the LandlordHQ Demo Bot!",
+      "rules_text": "📝 **Condo Rules:**\n1. Be kind.\n2. No loud music.",
+      "clearance_text": "📦 **Move-out:** Settle bills and submit form."
+    }
+  ],
+  "invites": []
+}

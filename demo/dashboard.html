@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script>
+        // Security: Redirect to login if unauthenticated
+        if (!localStorage.getItem('landlordhq_token')) {
+            window.location.replace('login.html');
+        }
+        
+        // Logout handler
+        function logout() {
+            localStorage.removeItem('landlordhq_token');
+            window.location.replace('login.html');
+        }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LandlordHQ | Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --navy: #0B1D3A;
+            --navy-mid: #132B52;
+            --electric: #2B7AFF;
+            --electric-light: #5A9BFF;
+            --gold: #F5A623;
+            --gold-soft: #FCEBD0;
+            --white: #FFFFFF;
+            --off-white: #F7F8FA;
+            --slate: #64748B;
+            --light-border: #E2E8F0;
+            --success: #22C55E;
+            --warning: #F5A623;
+            --danger: #f43f5e;
+            --info: #3b82f6;
+
+            /* Functional aliases */
+            --primary: var(--electric);
+            --primary-hover: var(--electric-light);
+            --secondary: var(--navy);
+            --bg: var(--off-white);
+            --sidebar-bg: var(--navy);
+            --sidebar-hover: rgba(43, 122, 255, 0.1);
+            --card-bg: var(--white);
+            --text-main: var(--navy);
+            --text-muted: var(--slate);
+            --border: var(--light-border);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+
+            --font-display: 'Sora', sans-serif;
+            --font-body: 'DM Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Brand: Stat value typography (Sora) ── */
+        .stat-value {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 700;
+            transition: color 0.3s ease;
+        }
+
+        /* ── Brand: Global input focus ring (Electric Blue) ── */
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 3px rgba(43, 122, 255, 0.1) !important;
+            outline: none;
+        }
+
+        /* ── Brand: Table row hover ── */
+        tbody tr {
+            transition: background 0.15s ease;
+        }
+        tbody tr:hover {
+            background: rgba(43, 122, 255, 0.03);
+        }
+
+        /* ── Brand: Card entrance animation ── */
+        @keyframes brandFadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card, .stat-card, .summary-card {
+            animation: brandFadeUp 0.5s ease-out both;
+        }
+        .stats-grid .card:nth-child(2), .stats-grid .stat-card:nth-child(2) { animation-delay: 0.05s; }
+        .stats-grid .card:nth-child(3), .stats-grid .stat-card:nth-child(3) { animation-delay: 0.1s; }
+        .stats-grid .card:nth-child(4), .stats-grid .stat-card:nth-child(4) { animation-delay: 0.15s; }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-display);
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 80px;
+            /* Slim Sidebar */
+            background: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 0;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar:hover {
+            width: 240px;
+        }
+
+        /* ── Brand: Sidebar gradient glow ── */
+        .sidebar::after {
+            content: '';
+            position: absolute;
+            bottom: -10%;
+            left: -20%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(43, 122, 255, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .logo-box {
+            margin-bottom: 50px;
+            color: var(--primary);
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 0 24px;
+            width: 100%;
+        }
+
+        .logo-text {
+            font-weight: 700;
+            display: none;
+            white-space: nowrap;
+            color: #FFFFFF;
+        }
+
+        .sidebar:hover .logo-text {
+            display: block;
+        }
+
+        .nav-links {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 0 16px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .nav-item i {
+            font-size: 1.25rem;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .nav-label {
+            font-weight: 500;
+            display: none;
+            white-space: nowrap;
+        }
+
+        .sidebar:hover .nav-label {
+            display: block;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            color: #FFFFFF;
+            background: rgba(245, 166, 35, 0.15);
+        }
+
+        .nav-item.active i {
+            color: var(--warning);
+        }
+
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            left: -16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            width: 100%;
+            padding: 0 16px;
+        }
+
+        /* --- Main Content --- */
+        main {
+            flex: 1;
+            margin-left: 80px;
+            padding: 0;
+            transition: margin-left 0.3s ease;
+        }
+
+        .top-header {
+            height: 80px;
+            background: var(--bg);
+            border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .top-header-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .search-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 400px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(43, 122, 255, 0.08);
+        }
+
+        .search-box i {
+            color: var(--text-muted);
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .page-container {
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .page-title h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .page-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* --- Global Grid & Cards --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .stat-main .label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-main .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .bg-primary {
+            background: rgba(43, 122, 255, 0.1);
+            color: var(--primary);
+        }
+
+        .bg-secondary {
+            background: rgba(11, 29, 58, 0.1);
+            color: var(--secondary);
+        }
+
+        .bg-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .bg-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--info);
+        }
+
+        .bg-warning {
+            background: rgba(245, 166, 35, 0.1);
+            color: var(--warning);
+        }
+
+        .bg-purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8b5cf6;
+        }
+
+        .stat-icon-lg {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .tenant-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 25px -10px rgba(43, 122, 255, 0.2);
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* --- Status Pills --- */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .pill-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .pill-warning {
+            background: rgba(245, 166, 35, 0.1);
+            color: var(--warning);
+        }
+
+        .pill-danger {
+            background: rgba(244, 63, 14, 0.1);
+            color: var(--danger);
+        }
+
+        .pill-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--info);
+        }
+
+        /* --- UI Components Redesign --- */
+        .unit-number {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .card-meta {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            color: var(--primary);
+        }
+
+        .btn-icon {
+            background: rgba(43, 122, 255, 0.1);
+            color: var(--primary);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* --- Media Component --- */
+        .media-container {
+            margin: 20px 0;
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            background: var(--bg);
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 1px solid var(--border);
+        }
+
+        .media-container:hover {
+            transform: scale(1.02);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(43, 122, 255, 0.1);
+        }
+
+        .media-container img,
+        .media-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: zoom-in;
+        }
+
+        .media-type-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        /* --- Modals --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            overflow-y: auto;
+        }
+
+        .modal-overlay .card {
+            max-width: 600px;
+            width: 100%;
+            margin: auto;
+            max-height: none;
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 2.5rem;
+            cursor: pointer;
+            z-index: 10001;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+
+        .lightbox-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10000;
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .lightbox-controls button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-controls button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        #lightbox-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #lightbox-content img {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            transition: transform 0.1s ease-out;
+            transform-origin: center center;
+            cursor: grab;
+        }
+        
+        #lightbox-content img:active {
+            cursor: grabbing;
+        }
+        
+        /* --- Responsive & Utils --- */
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            main {
+                margin-left: 0;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                width: 240px;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+        }
+
+        /* --- Interactive --- */
+        .pulse-alert {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 10px;
+            height: 10px;
+            background: var(--danger);
+            border-radius: 50%;
+        }
+
+        .pulse-alert::after {
+            content: '';
+            position: absolute;
+            inset: -5px;
+            border: 2px solid var(--danger);
+            border-radius: 50%;
+            animation: ripple 1.5s infinite;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0.5);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .confirm-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 11000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .confirm-card {
+            background: #fff;
+            width: 400px;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* --- Global Table Uniformity --- */
+        .content-section table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .content-section table thead tr {
+            background: var(--bg);
+            border-bottom: 2px solid var(--border) !important;
+        }
+
+        .content-section table thead th {
+            padding: 12px 15px;
+            font-weight: 500;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .content-section table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s ease;
+        }
+
+        .content-section table tbody tr:hover {
+            background: rgba(43, 122, 255, 0.03);
+        }
+
+        .content-section table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .content-section table tbody td {
+            padding: 12px 15px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar">
+        <div class="logo-box">
+            <svg width="32" height="32" viewBox="0 0 56 56" fill="none" style="flex-shrink: 0;">
+                <rect x="4" y="12" width="22" height="40" rx="3" fill="#2B7AFF"/>
+                <rect x="30" y="4" width="22" height="48" rx="3" fill="#F5A623"/>
+                <rect x="10" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="10" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="10" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="16" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="16" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="16" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="36" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="36" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="36" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="36" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="42" y="12" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="42" y="20" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="42" y="28" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+                <rect x="42" y="36" width="4" height="4" rx="1" fill="rgba(255,255,255,0.8)"/>
+            </svg>
+            <span class="logo-text" style="font-family: var(--font-display); font-weight: 700; font-size: 1.35rem;">Landlord<span style="font-weight: 400; opacity: 0.6;">HQ</span></span>
+        </div>
+        <div class="nav-links">
+            <div class="nav-item active" onclick="showSection('dashboard', this)">
+                <i class="fas fa-th-large"></i>
+                <span class="nav-label">Dashboard</span>
+            </div>
+            <div class="nav-item" onclick="showSection('properties', this)">
+                <i class="fas fa-building"></i>
+                <span class="nav-label">Properties</span>
+            </div>
+            <div class="nav-item" onclick="showSection('tenants', this)">
+                <i class="fas fa-user-friends"></i>
+                <span class="nav-label">Tenants</span>
+            </div>
+            <div class="nav-item" onclick="showSection('finance', this)">
+                <i class="fas fa-wallet"></i>
+                <span class="nav-label">Financials</span>
+            </div>
+            <div class="nav-item" onclick="showSection('support', this)">
+                <i class="fas fa-headset"></i>
+                <span class="nav-label">Support Hub</span>
+            </div>
+            <div class="nav-item" onclick="showSection('settings', this)">
+                <i class="fas fa-cog"></i>
+                <span class="nav-label">Settings</span>
+            </div>
+            <div class="nav-item" onclick="showSection('docs', this)">
+                <i class="fas fa-book"></i>
+                <span class="nav-label">Docs</span>
+            </div>
+        </div>
+        <div class="sidebar-footer">
+            <a class="nav-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span class="nav-label">Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="top-header">
+            <div class="top-header-inner">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="global-search" placeholder="Search units, tenants or tickets...">
+                </div>
+                <div class="header-actions">
+                    <div id="live-clock-container" style="text-align: right;">
+                        <div id="live-time" style="font-weight: 700; font-size: 1.1rem; color: var(--text);">00:00</div>
+                        <div id="live-date" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Day, Month 00, 0000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-container">
+            <header class="page-header">
+                <div class="page-title" style="display: flex; gap: 15px; align-items: center;">
+                    <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(43, 122, 255, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                        <i id="page-title-icon" class="fas fa-th-large"></i>
+                    </div>
+                    <div>
+                        <h1 id="page-title-text">Dashboard</h1>
+                        <p class="page-subtitle" id="page-subtitle-text">Real-time unit pulse and occupancy grid</p>
+                    </div>
+                </div>
+                <div class="header-tools">
+                    <!-- Quick Action removed as per user feedback/Vibecode screenshot -->
+                </div>
+            </header>
+
+            <!-- Section: Dashboard (was Property Portfolio) -->
+            <div id="dashboard-section" class="content-section active">
+
+                <!-- Row 1: Key Metrics -->
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                    <div class="card"
+                        style="padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div
+                                style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600; margin-bottom: 5px;">
+                                Total Properties</div>
+                            <div class="stat-value" id="dash-total-properties">0</div>
+                        </div>
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-city"></i>
+                        </div>
+                    </div>
+
+                    <div class="card"
+                        style="padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div
+                                style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600; margin-bottom: 5px;">
+                                Total Tenants</div>
+                            <div class="stat-value" id="dash-total-tenants">0</div>
+                        </div>
+                        <div class="stat-icon bg-purple">
+                            <i class="fas fa-user-friends"></i>
+                        </div>
+                    </div>
+
+                    <div class="card"
+                        style="padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div
+                                style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600; margin-bottom: 5px;">
+                                Active Leases</div>
+                            <div class="stat-value" id="dash-active-leases">0</div>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-file-contract"></i>
+                        </div>
+                    </div>
+
+                    <div class="card"
+                        style="padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div
+                                style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600; margin-bottom: 5px;">
+                                Monthly Revenue</div>
+                            <div class="stat-value" id="dash-monthly-revenue">₱0</div>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border); margin: 5px 0 25px 0;">
+
+                <!-- Row 2: Occupancy & Pending Payments -->
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                    <div class="card" style="padding: 24px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-chart-line" style="color: var(--info);"></i>
+                                <span style="font-weight: 600; color: var(--text-muted);">Occupancy Rate</span>
+                            </div>
+                            <div style="font-size: 1.5rem; font-weight: 700;" id="dash-occupancy-text">0.0%</div>
+                        </div>
+                        <div
+                            style="width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+                            <div id="dash-occupancy-bar"
+                                style="height: 100%; background: var(--info); width: 0%; border-radius: 4px; transition: width 0.5s ease;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; height: 100%;">
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                    <div
+                                        style="width: 30px; height: 30px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                    </div>
+                                    <span style="font-weight: 600; color: var(--text-muted);">Overdue Payments</span>
+                                </div>
+                                <div style="font-size: 2rem; font-weight: 700;" id="dash-overdue-payments">0</div>
+                            </div>
+                            <div style="color: var(--danger); font-size: 0.85rem; font-weight: 600;">
+                                Total unpaid
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border); margin: 5px 0 25px 0;">
+
+                <!-- Row 3: Recent & Upcoming Payments -->
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="far fa-clock" style="color: #8b5cf6;"></i>
+                                <span style="font-weight: 600; font-size: 1.1rem;">Upcoming Payments</span>
+                            </div>
+                            <a href="#" onclick="showSection('finance', document.querySelectorAll('.nav-item')[3]); window.scrollTo(0,0); return false;" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 500;">See more <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i></a>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Tenant</th>
+                                        <th>Property</th>
+                                        <th>Amount</th>
+                                        <th>Due Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dash-upcoming-payments">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-history" style="color: var(--info);"></i>
+                                <span style="font-weight: 600; font-size: 1.1rem;">Recent Payments</span>
+                            </div>
+                            <a href="#" onclick="showSection('finance', document.querySelectorAll('.nav-item')[3]); window.scrollTo(0,0); return false;" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 500;">See more <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i></a>
+                        </div>
+                        <div id="dash-recent-payments"
+                            style="min-height: 100px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.9rem;">
+                            No recent payments to display.
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border); margin: 5px 0 25px 0;">
+
+                <!-- Row 4: Support Overview -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i>
+                                <span style="font-weight: 600; font-size: 1.1rem;">Pending Support</span>
+                            </div>
+                            <a href="#" onclick="showSection('support', document.querySelectorAll('.nav-item')[4]); window.scrollTo(0,0); return false;" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 500;">See more <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i></a>
+                        </div>
+                        <div id="dash-pending-support" style="min-height: 100px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.9rem;">
+                            No pending support tickets.
+                        </div>
+                    </div>
+
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                                <span style="font-weight: 600; font-size: 1.1rem;">Recent Support Done</span>
+                            </div>
+                            <a href="#" onclick="showSection('support', document.querySelectorAll('.nav-item')[4]); window.scrollTo(0,0); return false;" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 500;">See more <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i></a>
+                        </div>
+                        <div id="dash-recent-support" style="min-height: 100px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.9rem;">
+                            No recently resolved tickets.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Properties (Building Level Management) -->
+            <div id="properties-section" class="content-section">
+                <!-- Title removed as per user request to avoid repetition -->
+                <div class="grid" id="properties-grid"
+                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 24px;">
+                    <!-- Property cards populated by JS -->
+                </div>
+            </div>
+
+            <!-- Section: Property Detail (Sub-view) -->
+            <div id="property-detail-section" class="content-section">
+                <button class="btn-outline"
+                    style="width: auto; margin-bottom: 30px; border: none; font-size: 0.9rem;"
+                    onclick="showSection('properties')">
+                    <i class="fas fa-arrow-left"></i> Back to Properties
+                </button>
+
+                <div id="detail-content">
+                    <!-- Populated by showPropertyDetail -->
+                </div>
+            </div>
+
+            <!-- Section: Tenants -->
+            <div id="tenants-section" class="content-section">
+                <!-- Title removed as per user request to avoid repetition -->
+                <div class="card" style="padding: 20px; overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th style="cursor: pointer;"
+                                    onclick="sortTenants('name')">Name <i class="fas fa-sort sort-icon"
+                                        id="sort-name"></i></th>
+                                <th style="cursor: pointer;"
+                                    onclick="sortTenants('email')">Email <i class="fas fa-sort sort-icon"
+                                        id="sort-email"></i></th>
+                                <th style="cursor: pointer;"
+                                    onclick="sortTenants('phone')">Phone <i class="fas fa-sort sort-icon"
+                                        id="sort-phone"></i></th>
+                                <th style="cursor: pointer;"
+                                    onclick="sortTenants('propertyId')">Property <i class="fas fa-sort sort-icon"
+                                        id="sort-propertyId"></i></th>
+                                <th style="cursor: pointer;"
+                                    onclick="sortTenants('status')">Status <i class="fas fa-sort sort-icon"
+                                        id="sort-status"></i></th>
+                                <th style="cursor: pointer;"
+                                    onclick="sortTenants('linkCode')">Link Code <i class="fas fa-sort sort-icon"
+                                        id="sort-linkCode"></i></th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenants-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Section: Financials -->
+            <!-- Section: Payments Verification (Merged into Dashboard or Finance) -->
+            <div id="payments-section" class="content-section">
+                <div class="card" style="padding: 24px; margin-bottom: 24px;">
+                    <h3>Pending Verifications</h3>
+                    <div class="grid" id="payments-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px; margin-top: 20px;"></div>
+                </div>
+            </div>
+
+                            <div id="support-section" class="content-section">
+                <div class="grid" id="tickets-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px;"></div>
+            </div>
+
+            <div id="finance-section" class="content-section">
+                <!-- Summary Cards Row -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+                    <div class="summary-card" style="background: linear-gradient(135deg, var(--success) 0%, #16a34a 100%); color: white; padding: 22px; border-radius: 16px; box-shadow: var(--shadow);">
+                        <span style="font-size: 0.8rem; font-weight: 400; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px;">Total Collected</span>
+                        <h2 id="total-collected" style="font-size: 1.8rem; margin: 8px 0 0; font-family: var(--font-mono); font-weight: 600;">₱0.00</h2>
+                    </div>
+                    <div class="summary-card" style="background: linear-gradient(135deg, var(--danger) 0%, #e11d48 100%); color: white; padding: 22px; border-radius: 16px; box-shadow: var(--shadow);">
+                        <span style="font-size: 0.8rem; font-weight: 400; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px;">Total Expenses</span>
+                        <h2 id="total-expenses" style="font-size: 1.8rem; margin: 8px 0 0; font-family: var(--font-mono); font-weight: 600;">₱0.00</h2>
+                    </div>
+                    <div class="summary-card" style="background: linear-gradient(135deg, var(--electric) 0%, var(--navy) 100%); color: white; padding: 22px; border-radius: 16px; box-shadow: var(--shadow);">
+                        <span style="font-size: 0.8rem; font-weight: 400; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px;">Net Profit</span>
+                        <h2 id="net-profit" style="font-size: 1.8rem; margin: 8px 0 0; font-family: var(--font-mono); font-weight: 600;">₱0.00</h2>
+                    </div>
+                </div>
+
+                <!-- Main Content Areas -->
+                <div style="display: flex; flex-direction: column; gap: 24px;">
+                    
+                    <!-- Upcoming Receivables -->
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                                <i class="far fa-clock"></i>
+                            </div>
+                            <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Upcoming Receivables</h3>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('upcoming', 'tenant')">Tenant <i class="fas fa-sort"></i></th>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('upcoming', 'property')">Property <i class="fas fa-sort"></i></th>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('upcoming', 'amount')">Amount <i class="fas fa-sort"></i></th>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('upcoming', 'dueDate')">Due Date <i class="fas fa-sort"></i></th>
+                                        <th style="text-align: right;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="finance-upcoming-body">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Transaction History -->
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(43, 122, 255, 0.1); color: var(--electric); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Transaction History</h3>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table id="payments-history-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('history', 'tenant')">Tenant <i class="fas fa-sort"></i></th>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('history', 'property')">Property &amp; Unit <i class="fas fa-sort"></i></th>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('history', 'amount')">Amount <i class="fas fa-sort"></i></th>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('history', 'timestamp')">Date <i class="fas fa-sort"></i></th>
+                                        <th>Receipt</th>
+                                        <th style="text-align: right;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="payments-history-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Expense Log -->
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(244, 63, 94, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                                <i class="fas fa-receipt"></i>
+                            </div>
+                            <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Expense Log</h3>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table id="expenses-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('expenses', 'category')">Category <i class="fas fa-sort"></i></th>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('expenses', 'amount')">Amount <i class="fas fa-sort"></i></th>
+                                        <th>Description</th>
+                                        <th style="cursor: pointer;" onclick="sortFinanceTable('expenses', 'timestamp')">Date <i class="fas fa-sort" style="color: var(--text-muted); font-size: 0.8em;"></i></th>
+                                        <th style="text-align: right;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expenses-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <section id="docs-section" class="content-section">
+                <h3 style="font-size: 1.1rem; color: var(--text-main); margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-user-friends" style="color: var(--info);"></i> Tenant Commands
+                </h3>
+                <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px; margin-bottom: 40px;">
+                    <div class="card" style="border-left: 4px solid var(--primary); padding: 20px;">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(99, 102, 241, 0.1); color: var(--primary); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/start</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Displays the initial welcome greeting.</p>
+                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/start
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--info); padding: 20px;">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(59, 130, 246, 0.1); color: var(--info); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/help</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Displays the configured help text and available commands.</p>
+                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/help
+                        </div>
+                    </div>
+
+                    <div class="card" style="border-left: 4px solid #14b8a6; padding: 20px;">
+                        <h4 style="margin-bottom: 12px;">
+                            <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                                <span style="background: rgba(20, 184, 166, 0.1); color: #14b8a6; padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/link &lt;LinkCode&gt;</span>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; margin-bottom: 4px;">Link your account</div>
+                                    <div style="font-size: 0.9rem; color: var(--text-muted);">Connect your Telegram to your unit. Example: <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/link A1B2C3</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: flex-start; gap: 15px;">
+                                <span style="background: rgba(244, 63, 14, 0.1); color: var(--danger); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/unlink</span>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; margin-bottom: 4px;">Unlink from current unit</div>
+                                    <div style="font-size: 0.9rem; color: var(--text-muted);">Use this to disconnect or move to a different unit.</div>
+                                </div>
+                            </div>
+                        </h4>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--warning); padding: 20px;">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(245, 158, 11, 0.1); color: var(--warning); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/rules</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Displays the complete list of Condo House Rules (e.g., swimming pool hours, visitor policies, trash collection).</p>
+                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/rules
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid #8b5cf6; padding: 20px;">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/clearance</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Outlines the exact steps and requirements for the move-out clearance process.</p>
+                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/clearance
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--danger); padding: 20px;">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/report &lt;Issue&gt;</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Submits a maintenance ticket to the Support Hub. Works for both text messages and photo/video captions.</p>
+                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/report The air conditioning unit is leaking water.
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--danger); padding: 20px;">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">[Attach Photo/Video] + /report</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Submits a maintenance ticket with visual evidence. Add <code>/report</code> in the caption to classify it as a concern.</p>
+                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-paperclip" style="color: var(--text-muted); margin-right: 8px;"></i>/report Leaking pipe under the sink.
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--success); padding: 20px;">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(16, 185, 129, 0.1); color: var(--success); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/payment</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Submits a payment receipt. Send a photo/video with <code>/payment</code> in the caption. <i>(Note: Sending media with NO caption also defaults to a payment submission)</i>.</p>
+                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-paperclip" style="color: var(--text-muted); margin-right: 8px;"></i>/payment GCash receipt for March rent
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="font-size: 1.1rem; color: var(--text-main); margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-user-shield" style="color: var(--danger);"></i> Landlord / Admin Commands <span style="font-size: 0.8rem; font-weight: normal; background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 4px 8px; border-radius: 20px; margin-left: 10px;">Private</span>
+                </h3>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">These commands will <b>only</b> work for the Telegram Account whose ID matches the <code>OWNER_TELEGRAM_ID</code> registered in the server environment constraints.</p>
+                <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px;">
+                    
+                    <div class="card" style="border-left: 4px solid var(--danger); padding: 20px; background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(239, 68, 68, 0.02) 10px, rgba(239, 68, 68, 0.02) 20px);">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/addtenant &lt;UnitNumber&gt; &lt;TenantName&gt; [DueDay]</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Manually provisions a new unit and tenant profile via Telegram instead of the dashboard.</p>
+                        <div style="background: #fff; border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/addtenant 110 Noel 15
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--danger); padding: 20px; background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(239, 68, 68, 0.02) 10px, rgba(239, 68, 68, 0.02) 20px);">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/removetenant &lt;UnitNumber&gt;</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Deletes a unit and disconnects the tenant's data.</p>
+                        <div style="background: #fff; border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/removetenant 110
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="border-left: 4px solid var(--danger); padding: 20px; background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(239, 68, 68, 0.02) 10px, rgba(239, 68, 68, 0.02) 20px);">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 6px 12px; border-radius: 8px; font-family: monospace; font-size: 1rem;">/tenantlist</span>
+                        </h4>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 15px; line-height: 1.5;">Generates a text list of all units, the assigned tenant's name, their due date, and whether they have successfully linked their Telegram account.</p>
+                        <div style="background: #fff; border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--secondary);">
+                            <i class="fas fa-terminal" style="color: var(--text-muted); margin-right: 8px;"></i>/tenantlist
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <section id="settings-section" class="content-section">
+                <div class="card" style="max-width: 900px; padding: 30px;">
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="font-size: 1.1rem; color: var(--primary); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-sliders-h"></i> Core Parameters
+                        </h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Fundamental settings for how the bot interacts with your properties.</p>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                            <div class="input-group">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Rent Reminder Day</label>
+                                <div style="position: relative;">
+                                    <i class="far fa-calendar-alt" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                                    <input type="number" id="remind-days" placeholder="e.g. 5" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: all 0.2s; outline: none;">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Currency</label>
+                                <div style="position: relative;">
+                                    <i class="fas fa-coins" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                                    <input type="text" id="currency" placeholder="e.g. ₱" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: all 0.2s; outline: none;">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Fixer Chat ID</label>
+                                <div style="position: relative;">
+                                    <i class="fas fa-hard-hat" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                                    <input type="text" id="fixer-id" placeholder="Telegram Chat ID" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: all 0.2s; outline: none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="border: none; border-top: 1px solid var(--border); margin: 30px 0;">
+
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="font-size: 1.1rem; color: var(--primary); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-comment-dots"></i> Message Customization
+                        </h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Tailor the automated responses sent to your tenants.</p>
+
+                        <div style="display: grid; gap: 24px;">
+                            <div style="background: var(--bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border);">
+                                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">
+                                    <span>Welcome Message <span style="color: var(--primary); font-family: monospace; font-size: 0.85rem; margin-left: 8px; background: rgba(99, 102, 241, 0.1); padding: 2px 6px; border-radius: 4px;">/start</span></span>
+                                </label>
+                                <textarea id="start-text" rows="3" style="width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; resize: vertical; line-height: 1.5; outline: none;" placeholder="Welcome to Landlord HQ. Enter /help for more commands."></textarea>
+                            </div>
+                            
+                            <div style="background: var(--bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border);">
+                                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">
+                                    <span>House Rules <span style="color: var(--primary); font-family: monospace; font-size: 0.85rem; margin-left: 8px; background: rgba(99, 102, 241, 0.1); padding: 2px 6px; border-radius: 4px;">/rules</span></span>
+                                </label>
+                                <textarea id="rules-text" rows="5" style="width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; resize: vertical; line-height: 1.5; outline: none;" placeholder="1. No loud music after 10 PM.&#10;2. Proper waste disposal required."></textarea>
+                            </div>
+                            
+                            <div style="background: var(--bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border);">
+                                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">
+                                    <span>Clearance Process <span style="color: var(--primary); font-family: monospace; font-size: 0.85rem; margin-left: 8px; background: rgba(99, 102, 241, 0.1); padding: 2px 6px; border-radius: 4px;">/clearance</span></span>
+                                </label>
+                                <textarea id="clearance-text" rows="4" style="width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; resize: vertical; line-height: 1.5; outline: none;" placeholder="1. Settle all bills.&#10;2. Turn over keys to admin."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button class="btn btn-primary" onclick="saveSettings()" style="width: auto; padding: 14px 30px; font-size: 1rem; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+                            <i class="fas fa-save"></i> Save Configuration
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <div class="lightbox-close" onclick="closeLightbox()">&times;</div>
+        <div id="lightbox-content"></div>
+        <div class="lightbox-controls" id="lightbox-controls" style="display:none;">
+            <button onclick="zoomMedia(-0.25)"><i class="fas fa-search-minus"></i></button>
+            <button onclick="resetZoom()"><i class="fas fa-compress-arrows-alt"></i></button>
+            <button onclick="zoomMedia(0.25)"><i class="fas fa-search-plus"></i></button>
+        </div>
+    </div>
+
+    <!-- Add Property Modal -->
+    <div id="property-modal" class="modal-overlay">
+        <div class="card" style="width: 600px; padding: 30px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 id="modal-title" style="font-size:1.3rem;">Add Property</h3>
+                <i class="fas fa-times" style="cursor:pointer; color:var(--text-muted)"
+                    onclick="closePropertyModal()"></i>
+            </div>
+            <p id="modal-subtitle" style="color: var(--text-muted); margin-bottom:25px; font-size:0.9rem;">Fill in the
+                details to add a new property.</p>
+
+            <form id="property-form">
+                <input type="hidden" id="prop-id">
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Property
+                        Name</label>
+                    <input type="text" id="prop-name" placeholder="e.g. Sunrise Apartments"
+                        style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;" required>
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Street
+                        Address</label>
+                    <input type="text" id="prop-address" placeholder="123 Main St"
+                        style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;" required>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:15px; margin-bottom:20px;">
+                    <div>
+                        <label
+                            style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">City</label>
+                        <input type="text" id="prop-city" placeholder="City"
+                            style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;"
+                            required>
+                    </div>
+                    <div>
+                        <label
+                            style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">State</label>
+                        <input type="text" id="prop-state" placeholder="MM"
+                            style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;"
+                            required>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Zip
+                            Code</label>
+                        <input type="text" id="prop-zip" placeholder="90210"
+                            style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;"
+                            required>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:20px;">
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Property
+                            Type</label>
+                        <select id="prop-type"
+                            style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;">
+                            <option value="Residential">Residential</option>
+                            <option value="Commercial">Commercial</option>
+                            <option value="Industrial">Industrial</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label
+                            style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Units</label>
+                        <input type="number" id="prop-units" value="1"
+                            style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;"
+                            required>
+                    </div>
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Status</label>
+                    <select id="prop-status"
+                        style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Maintenance">Maintenance</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:25px;">
+                    <label
+                        style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Description</label>
+                    <textarea id="prop-desc" rows="3" placeholder="Optional description..."
+                        style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; font-family:inherit;"></textarea>
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-outline" style="width:auto;"
+                        onclick="closePropertyModal()">Cancel</button>
+                    <button type="submit" id="submit-btn" class="btn btn-primary"
+                        style="width:auto;">Create Property</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Tenant Modal -->
+    <div id="tenant-modal" class="modal-overlay" style="display:none;">
+        <div class="card" style="width: 500px; padding: 30px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 id="tenant-modal-title" style="font-size:1.3rem;">Edit Tenant</h3>
+                <i class="fas fa-times" style="cursor:pointer; color:var(--text-muted)"
+                    onclick="closeTenantModal()"></i>
+            </div>
+
+            <form id="tenant-form">
+                <input type="hidden" id="tenant-original-unit">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">First
+                            Name</label>
+                        <input type="text" id="tenant-fname" required
+                            style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: transparent;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Last
+                            Name</label>
+                        <input type="text" id="tenant-lname" required
+                            style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: transparent;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Email</label>
+                    <input type="email" id="tenant-email"
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: transparent;">
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Phone</label>
+                    <input type="tel" id="tenant-phone"
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: transparent;">
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <label
+                        style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Property</label>
+                    <select id="tenant-property"
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: transparent;"
+                        required>
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Unit
+                            Number</label>
+                        <div
+                            style="display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: transparent;">
+                            <span
+                                style="display: flex; align-items: center; padding: 0 12px; background: var(--bg); color: var(--text-muted); font-weight: 600; border-right: 1px solid var(--border);">UNIT-</span>
+                            <input type="text" id="tenant-unit" required
+                                style="width:100%; padding:10px; border:none; outline:none; background: transparent;">
+                        </div>
+                    </div>
+                    <div>
+                        <label
+                            style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Due Day</label>
+                        <input type="number" id="tenant-due-day" min="1" max="31" required
+                            style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: transparent;">
+                    </div>
+                </div>
+
+                <div style="background: var(--bg); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 15px; color: var(--primary);">Lease & Financials</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:5px;">Monthly Rent</label>
+                            <input type="number" id="tenant-lease-amount" placeholder="0.00"
+                                style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; background: #fff;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:5px;">Move-in Date</label>
+                            <input type="date" id="tenant-move-in-date"
+                                style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; background: #fff;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:5px;">Advance Payment</label>
+                            <input type="number" id="tenant-advance" placeholder="0.00"
+                                style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; background: #fff;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:5px;">Security Deposit</label>
+                            <input type="number" id="tenant-deposit" placeholder="0.00"
+                                style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; background: #fff;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:5px;">Lease End Date</label>
+                        <input type="date" id="tenant-lease-end"
+                            style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px; background: #fff; margin-bottom: 15px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:8px;">Remarks</label>
+                        <textarea id="tenant-remarks" placeholder="Add any special notes about this tenant..."
+                            style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: #fff; min-height: 80px; font-family: inherit; font-size: 0.85rem; resize: vertical;"></textarea>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Status</label>
+                    <select id="tenant-status"
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: transparent;">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </div>
+
+                <div style="display:flex; gap:12px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-outline" style="width:auto;"
+                        onclick="closeTenantModal()">Cancel</button>
+                    <button type="submit" id="tenant-submit-btn" class="btn btn-primary"
+                        style="width:auto; border:none;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Popup -->
+    <div id="confirm-modal" class="confirm-overlay">
+        <div class="confirm-card">
+            <div id="confirm-icon"
+                style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 1.5rem;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 id="confirm-title" style="font-size: 1.2rem; font-weight: 700; margin-bottom: 10px;">Are you sure?</h3>
+            <p id="confirm-msg" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px;">This action
+                cannot be undone.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button class="btn btn-outline" style="width: auto;"
+                    onclick="closeConfirmModal()">Cancel</button>
+                <button id="confirm-btn" class="btn" style="width: auto;">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Payment Modal -->
+    <div id="payment-modal" class="modal-overlay" style="display:none;">
+        <div class="card" style="width: 500px; padding: 30px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="font-size:1.3rem;">Log Manual Payment</h3>
+                <i class="fas fa-times" style="cursor:pointer; color:var(--text-muted)" onclick="closePaymentModal()"></i>
+            </div>
+            <form id="payment-form">
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Tenant</label>
+                    <select id="payment-tenant" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;" required></select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Amount</label>
+                        <input type="number" id="payment-amount" required style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Method</label>
+                        <select id="payment-method" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;">
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="GCash">GCash</option>
+                            <option value="Check">Check</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-bottom:25px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Notes</label>
+                    <textarea id="payment-notes" rows="2" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; font-family:inherit;"></textarea>
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-outline" style="width:auto;" onclick="closePaymentModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="width:auto;">Save Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Verify Payment Modal -->
+    <div id="verify-payment-modal" class="modal-overlay" style="display:none;">
+        <div class="card" style="width: 400px; padding: 30px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="font-size:1.3rem;">Verify Payment</h3>
+                <i class="fas fa-times" style="cursor:pointer; color:var(--text-muted)" onclick="closeVerifyPaymentModal()"></i>
+            </div>
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Confirm the amount actually received for this payment.</p>
+            <form id="verify-payment-form">
+                <input type="hidden" id="verify-payment-id">
+                <input type="hidden" id="verify-payment-unit">
+                <div style="margin-bottom:25px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Amount Received (₱)</label>
+                    <input type="number" id="verify-amount" step="0.01" required 
+                        style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; font-size:1.1rem; font-weight:600; color:var(--success);">
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-outline" style="width:auto;" onclick="closeVerifyPaymentModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="width:auto;">Complete Verification</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div id="expense-modal" class="modal-overlay" style="display:none;">
+        <div class="card" style="width: 500px; padding: 30px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="font-size:1.3rem;">Log Expense</h3>
+                <i class="fas fa-times" style="cursor:pointer; color:var(--text-muted)" onclick="closeExpenseModal()"></i>
+            </div>
+            <form id="expense-form">
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Category</label>
+                    <select id="expense-category" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;" required>
+                        <option value="Repairs">Repairs & Maintenance</option>
+                        <option value="Taxes">Taxes</option>
+                        <option value="Assoc Dues">Association Dues</option>
+                        <option value="Marketing">Marketing/Ads</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Amount</label>
+                    <input type="number" id="expense-amount" required style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;">
+                </div>
+                <div style="margin-bottom:25px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">Description</label>
+                    <textarea id="expense-desc" rows="2" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; font-family:inherit;"></textarea>
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-outline" style="width:auto;" onclick="closeExpenseModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="width:auto;">Save Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Message Modal Removed as per user feedback -->
+
+    <!-- External Dashboard Script -->
+    <script src="js/dashboard.js"></script>
+    <script>
+        // Logout functionality
+        function logout() {
+            openConfirmModal('Logout', 'Are you sure you want to log out?', 'info', () => {
+                localStorage.removeItem('landlordhq_token');
+                window.location.href = '/login.html';
+            });
+        }
+    </script>
+</body>
+
+</html>
