@@ -698,6 +698,7 @@ app.delete('/api/tenants/:unit', authenticateAdmin, (req, res) => {
 
 // Get all tickets (paginated)
 app.get('/api/tickets', authenticateAdmin, (req, res) => {
+    db.read();
     const tickets = db.get('tickets').filter({ adminId: req.admin.id }).value() || [];
     if (req.query.page) {
         return res.json(paginate(tickets, req.query.page, req.query.limit));
@@ -860,6 +861,7 @@ app.delete('/api/properties/:id', authenticateAdmin, (req, res) => {
 // --- Payment Proof Endpoints ---
 
 app.get('/api/payments', authenticateAdmin, (req, res) => {
+    db.read();
     const payments = db.get('payments').filter({ adminId: req.admin.id }).value() || [];
     if (req.query.page) {
         return res.json(paginate(payments, req.query.page, req.query.limit));
