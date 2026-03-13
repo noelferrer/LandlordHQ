@@ -263,33 +263,6 @@
             padding: 0 40px;
         }
 
-        .search-box {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 10px 18px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            width: 400px;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .search-box:focus-within {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(43, 122, 255, 0.08);
-        }
-
-        .search-box i {
-            color: var(--text-muted);
-        }
-
-        .search-box input {
-            border: none;
-            background: transparent;
-            width: 100%;
-            font-family: inherit;
-        }
 
         .header-actions {
             display: flex;
@@ -781,7 +754,6 @@
 
             .hamburger-btn { display: block; }
 
-            .search-box { width: 250px; }
             .page-container { padding: 24px; }
             .top-header-inner { padding: 0 20px; }
 
@@ -804,8 +776,6 @@
             .top-header { height: 60px; }
             .top-header-inner { padding: 0 12px; }
 
-            .search-box { width: 160px; padding: 8px 12px; }
-            .search-box input { font-size: 0.85rem; }
 
             .page-header {
                 flex-direction: column;
@@ -1051,10 +1021,7 @@
                 <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle navigation menu">
                     <i class="fas fa-bars"></i>
                 </button>
-                <div class="search-box" role="search">
-                    <i class="fas fa-search" aria-hidden="true"></i>
-                    <input type="text" id="global-search" placeholder="Search units, tenants or tickets..." aria-label="Search units, tenants or tickets">
-                </div>
+
                 <div class="header-actions">
                     <div id="live-clock-container" style="text-align: right;" aria-hidden="true">
                         <div id="live-time" style="font-weight: 700; font-size: 1.1rem; color: var(--text);">00:00</div>
@@ -1144,38 +1111,42 @@
                 <!-- Row 2: Occupancy & Pending Payments -->
                 <div
                     style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                    <div class="card" style="padding: 24px;">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div class="card" style="padding: 24px; min-height: 200px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <i class="fas fa-chart-line" style="color: var(--info);"></i>
-                                <span style="font-weight: 600; color: var(--text-muted);">Occupancy Rate</span>
+                                <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                </div>
+                                <span style="font-weight: 600; font-size: 1.1rem;">Overdue Payments</span>
                             </div>
-                            <div style="font-size: 1.5rem; font-weight: 700;" id="dash-occupancy-text">0.0%</div>
+                            <div id="dash-overdue-count-pill" class="status-pill pill-danger" style="display: none;">0 Unpaid</div>
                         </div>
-                        <div
-                            style="width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
-                            <div id="dash-occupancy-bar"
-                                style="height: 100%; background: var(--info); width: 0%; border-radius: 4px; transition: width 0.5s ease;">
-                            </div>
+                        <div id="dash-overdue-list" style="overflow-x: auto;">
+                            <!-- Dynamic list of overdue tenants will be rendered here -->
+                             <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                                No overdue payments.
+                             </div>
                         </div>
                     </div>
 
-                    <div class="card" style="padding: 24px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; height: 100%;">
-                            <div>
-                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                                    <div
-                                        style="width: 30px; height: 30px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center;">
-                                        <i class="fas fa-exclamation-circle"></i>
-                                    </div>
-                                    <span style="font-weight: 600; color: var(--text-muted);">Overdue Payments</span>
+                    <!-- Pending Verification Card -->
+                    <div class="card" style="padding: 24px; min-height: 200px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(245, 158, 11, 0.1); color: var(--warning); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-clock"></i>
                                 </div>
-                                <div style="font-size: 2rem; font-weight: 700;" id="dash-overdue-payments">0</div>
+                                <span style="font-weight: 600; font-size: 1.1rem;">Pending Verification</span>
                             </div>
-                            <div style="color: var(--danger); font-size: 0.85rem; font-weight: 600;">
-                                Total unpaid
+                            <div id="dash-pending-verif-pill" class="status-pill pill-warning" style="display: none;">0 Pending</div>
+                        </div>
+                        <div id="dash-pending-verif-list">
+                            <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                                No pending verifications.
                             </div>
+                        </div>
+                        <div style="margin-top: 16px; text-align: right;">
+                            <a href="#" onclick="showSection('finance', document.querySelectorAll('.nav-item')[3]); window.scrollTo(0,0); return false;" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 500;">Go to Financials <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i></a>
                         </div>
                     </div>
                 </div>
@@ -1299,6 +1270,12 @@
                                     onclick="sortTenants('propertyId')">Property <i class="fas fa-sort sort-icon"
                                         id="sort-propertyId"></i></th>
                                 <th style="cursor: pointer;"
+                                    onclick="sortTenants('moveInDate')">Move-in Date <i class="fas fa-sort sort-icon"
+                                        id="sort-moveInDate"></i></th>
+                                <th style="cursor: pointer;"
+                                    onclick="sortTenants('rent_due_day')">Due Day <i class="fas fa-sort sort-icon"
+                                        id="sort-rent_due_day"></i></th>
+                                <th style="cursor: pointer;"
                                     onclick="sortTenants('status')">Status <i class="fas fa-sort sort-icon"
                                         id="sort-status"></i></th>
                                 <th style="cursor: pointer;"
@@ -1316,12 +1293,6 @@
 
             <!-- Section: Financials -->
             <!-- Section: Payments Verification (Merged into Dashboard or Finance) -->
-            <div id="payments-section" class="content-section" role="region" aria-label="Payments">
-                <div class="card" style="padding: 24px; margin-bottom: 24px;">
-                    <h3>Pending Verifications</h3>
-                    <div class="grid" id="payments-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px; margin-top: 20px;"></div>
-                </div>
-            </div>
 
                             <div id="support-section" class="content-section" role="region" aria-label="Support hub">
                 <!-- Telegram command callout -->
@@ -1353,11 +1324,23 @@
                                 <tbody id="resolved-tickets-body"></tbody>
                             </table>
                         </div>
+                        <div id="resolved-pagination" style="margin-top: 16px;"></div>
                     </div>
                 </div>
             </div>
 
             <div id="finance-section" class="content-section" role="region" aria-label="Financial hub">
+                <!-- Pending Verification (Bot data) -->
+                <div class="card" style="padding: 24px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                        <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(43, 122, 255, 0.1); color: var(--electric); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                            <i class="fas fa-search-dollar"></i>
+                        </div>
+                        <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Pending Verifications</h3>
+                    </div>
+                    <div class="grid" id="payments-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px;"></div>
+                </div>
+
                 <!-- Telegram command callout -->
                 <div style="background: rgba(43, 122, 255, 0.06); border: 1px solid rgba(43, 122, 255, 0.2); border-radius: 12px; padding: 12px 18px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; font-size: 0.88rem; color: var(--text-muted);">
                     <i class="fas fa-telegram-plane" style="color: var(--primary); font-size: 1.1rem;"></i>
@@ -1614,15 +1597,20 @@
                                 <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Currency</label>
                                 <div style="position: relative;">
                                     <i class="fas fa-coins" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                                    <input type="text" id="currency" placeholder="e.g. ₱" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: all 0.2s; outline: none;">
+                                    <select id="currency" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: all 0.2s; outline: none; appearance: none; background: #fff;">
+                                        <option value="₱">₱ (PHP - Philippine Peso)</option>
+                                        <option value="$">$ (USD - US Dollar)</option>
+                                    </select>
+                                    <i class="fas fa-chevron-down" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; font-size: 0.8rem;"></i>
                                 </div>
                             </div>
                             <div class="input-group">
-                                <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Fixer Chat ID</label>
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Fixer Chat ID <span style="color: var(--text-muted); font-weight: 400;">(numeric only)</span></label>
                                 <div style="position: relative;">
                                     <i class="fas fa-hard-hat" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                                    <input type="text" id="fixer-id" placeholder="Telegram Chat ID" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: all 0.2s; outline: none;">
+                                    <input type="text" id="fixer-id" placeholder="e.g. 123456789" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; transition: all 0.2s; outline: none;">
                                 </div>
+                                <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 6px;">Have your fixer send <code>/myid</code> to the bot — they'll get their numeric ID to paste here.</p>
                             </div>
                         </div>
                     </div>
@@ -2058,7 +2046,7 @@
     <!-- Message Modal Removed as per user feedback -->
 
     <!-- External Dashboard Script -->
-    <script src="js/dashboard.js"></script>
+    <script src="js/dashboard.js?v=1.0.1"></script>
     <script>
         // Sidebar toggle for mobile/tablet
         function toggleSidebar() {

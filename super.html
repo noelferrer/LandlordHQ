@@ -212,6 +212,7 @@
 
         .pill-active { background: rgba(34, 197, 94, 0.1); color: var(--success); }
         .pill-claimed { background: rgba(100, 116, 139, 0.1); color: var(--slate); }
+        .pill-expired { background: rgba(156, 163, 175, 0.12); color: #9ca3af; }
 
         /* --- Buttons --- */
         .btn-primary {
@@ -312,6 +313,15 @@
                     <i class="fas fa-user-check"></i>
                 </div>
             </div>
+            <div class="stat-card">
+                <div>
+                    <div class="stat-label">Expired Codes</div>
+                    <div class="stat-value" id="stat-expired">0</div>
+                </div>
+                <div class="stat-icon" style="background: rgba(156,163,175,0.15); color: #9ca3af;">
+                    <i class="fas fa-clock"></i>
+                </div>
+            </div>
         </div>
 
         <div class="card">
@@ -406,6 +416,8 @@
             statTotal.innerText = invites.length;
             statActive.innerText = invites.filter(i => i.status === 'active').length;
             statClaimed.innerText = invites.filter(i => i.status === 'claimed').length;
+            const statExpired = document.getElementById('stat-expired');
+            if (statExpired) statExpired.innerText = invites.filter(i => i.status === 'expired').length;
 
             invites.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -417,8 +429,8 @@
                         <div style="color:var(--text-muted); font-size:0.75rem">${new Date(i.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
                     </td>
                     <td>
-                        <span class="status-pill ${i.status === 'active' ? 'pill-active' : 'pill-claimed'}">
-                            <i class="fas ${i.status === 'active' ? 'fa-circle-check' : 'fa-user-lock'}"></i>
+                        <span class="status-pill ${i.status === 'active' ? 'pill-active' : i.status === 'claimed' ? 'pill-claimed' : 'pill-expired'}">
+                            <i class="fas ${i.status === 'active' ? 'fa-circle-check' : i.status === 'claimed' ? 'fa-user-lock' : 'fa-clock'}"></i>
                             ${i.status.toUpperCase()}
                         </span>
                     </td>

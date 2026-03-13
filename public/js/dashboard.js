@@ -31,21 +31,19 @@
         // --- Global State & Pagination ---
         window.tenantData = [];
         window.propertyData = [];
+        window.appSettings = {};
         
         const ITEMS_PER_PAGE = 10;
         let currentPropertiesPage = 1;
         let currentTenantsPage = 1;
         let currentLogsPage = 1;
+        let currentResolvedPage = 1;
 
         // --- Navigation ---
         function showSection(id, el) {
             document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
             document.getElementById(`${id}-section`).classList.add('active');
             
-            // Special handling for unified Financials: always show payments-section when in finance
-            if (id === 'finance') {
-                document.getElementById('payments-section').classList.add('active');
-            }
 
             document.querySelectorAll('.nav-item').forEach(i => {
                 i.classList.remove('active');
@@ -262,7 +260,8 @@
                     const tenantsList = await existingRes.json();
                     const existingT = tenantsList.find(t => t.unit === originalUnit);
                     if (existingT && existingT.telegramId) data.telegramId = existingT.telegramId;
-                    if (existingT && existingT.rent_due_day) data.rent_due_day = existingT.rent_due_day;
+                    // Removed: if (existingT && existingT.rent_due_day) data.rent_due_day = existingT.rent_due_day;
+                    // This was overwriting the new value from the form with the old value from the DB.
 
                     openConfirmModal('Save Changes', 'Are you sure you want to update this tenant?', 'info', async () => {
                         try {
@@ -461,14 +460,20 @@
             const dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
 
             sorted.sort((a, b) => {
-                let valA = String(a[currentSort.key] || '').toLowerCase();
-                let valB = String(b[currentSort.key] || '').toLowerCase();
+                let valA = a[currentSort.key];
+                let valB = b[currentSort.key];
 
                 if (currentSort.key === 'propertyId') {
                     const pA = (window.propertyData || []).find(p => String(p.id) === String(a.propertyId));
                     const pB = (window.propertyData || []).find(p => String(p.id) === String(b.propertyId));
                     valA = pA ? pA.name.toLowerCase() : 'unassigned';
                     valB = pB ? pB.name.toLowerCase() : 'unassigned';
+                } else if (currentSort.key === 'moveInDate') {
+                    valA = valA ? new Date(valA).getTime() : 0;
+                    valB = valB ? new Date(valB).getTime() : 0;
+                } else {
+                    valA = String(valA || '').toLowerCase();
+                    valB = String(valB || '').toLowerCase();
                 }
 
                 if (valA < valB) return -1 * dirMultiplier;
@@ -499,6 +504,8 @@
                         <td style="color: var(--text-muted); font-size: 0.9rem;">${esc(t.email) || '-'}</td>
                         <td style="color: var(--text-muted); font-size: 0.9rem;">${esc(t.phone) || '-'}</td>
                         <td style="color: var(--text-muted); font-size: 0.9rem;">${esc(prop.name)}</td>
+                        <td style="color: var(--text-muted); font-size: 0.9rem;">${t.moveInDate ? new Date(t.moveInDate).toLocaleDateString() : '-'}</td>
+                        <td style="color: var(--text-muted); font-size: 0.9rem; text-align: center;">Day ${t.rent_due_day || 1}</td>
                         <td>
                             <span class="status-pill ${statusClass}" style="font-size: 0.75rem;">${t.status || 'Active'}</span>
                         </td>
@@ -756,7 +763,9 @@
             paginatedProperties.forEach(p => {
                 const pTenants = (window.tenantData || []).filter(t => String(t.propertyId) === String(p.id));
                 const tCount = pTenants.length;
-                const lCount = pTenants.length;
+                const maxUnits = parseInt(p.units) || 0;
+                const isFull = maxUnits > 0 && tCount >= maxUnits;
+                const occupancyColor = isFull ? 'var(--danger)' : tCount > 0 ? 'var(--success)' : 'var(--text-muted)';
 
                 grid.innerHTML += `
                 <div class="card" onclick="showPropertyDetail('${p.id}')" style="cursor: pointer;">
@@ -781,11 +790,8 @@
                             <div style="display:flex; align-items:center; gap:5px;">
                                 <i class="fas fa-door-open"></i> ${esc(p.units)} units
                             </div>
-                            <div style="display:flex; align-items:center; gap:5px;">
-                                <i class="fas fa-user-friends"></i> ${tCount} tenants
-                            </div>
-                            <div style="display:flex; align-items:center; gap:5px;">
-                                <i class="fas fa-file-contract"></i> ${lCount} leases
+                            <div style="display:flex; align-items:center; gap:5px; color:${occupancyColor}; font-weight: ${isFull ? '600' : '400'};">
+                                <i class="fas fa-user-friends"></i> ${tCount}/${maxUnits} occupied${isFull ? ' (Full)' : ''}
                             </div>
                         </div>
                     </div>
@@ -876,7 +882,7 @@
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 12px; color: var(--text-muted);">
                                     <i class="fas fa-calendar-alt" style="width: 20px;"></i>
-                                    <div style="font-size: 0.95rem; color: var(--text-main); font-weight: 500;">Added ${new Date(Number(p.id)).toLocaleDateString()}</div>
+                                    <div style="font-size: 0.95rem; color: var(--text-main); font-weight: 500;">Added ${p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'Unknown Date'}</div>
                                 </div>
                                 <div style="margin-top: 10px; padding: 15px; background: var(--bg); border-radius: 10px; border: 1px solid var(--border);">
                                     <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">${esc(p.description) || 'No description provided.'}</div>
@@ -948,6 +954,10 @@
                 const settings = (rawSettings && typeof rawSettings === 'object' && !Array.isArray(rawSettings)) ? rawSettings : {};
                 const properties = Array.isArray(rawProperties) ? rawProperties : [];
 
+                window.appSettings = settings;
+                window.tenantData = tenants;
+                window.propertyData = properties;
+
                 // Update Stats
                 const statProps = document.getElementById('dash-total-properties');
                 const statTenants = document.getElementById('dash-total-tenants');
@@ -965,7 +975,8 @@
                 // Revenue based on actually verified payments for the current month only
                 const currentMonthRevenuePayments = verifiedPayments.filter(p => new Date(p.timestamp).getTime() >= currentMonthStart);
                 const totalRevenue = currentMonthRevenuePayments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
-                if (statRevenue) statRevenue.innerText = `₱${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const currencySymbol = settings.currency || '₱';
+                if (statRevenue) statRevenue.innerText = `${currencySymbol}${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
                 // Update Occupancy
                 let totalUnits = 0;
@@ -981,7 +992,7 @@
                 const overdueTenants = tenants.filter(t => {
                     if (t.status === 'Inactive') return false;
                     const dueDay = t.rent_due_day || 1;
-                    const gracePeriod = 3;
+                    const gracePeriod = 1; // User requested 1 day past due date
                     const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
                     const overdueThreshold = new Date(dueDate.getTime() + (gracePeriod * 24 * 60 * 60 * 1000));
                     
@@ -993,11 +1004,46 @@
                 });
 
                 // Update Overdue Payments Stat
-                const overdueStat = document.getElementById('dash-overdue-payments');
-                if (overdueStat) overdueStat.innerText = overdueTenants.length;
+                const overduePill = document.getElementById('dash-overdue-count-pill');
+                if (overduePill) {
+                    overduePill.innerText = `${overdueTenants.length} Unpaid`;
+                    overduePill.style.display = overdueTenants.length > 0 ? 'inline-block' : 'none';
+                }
 
-                // Render Overdue Payments (In place of what was pending)
-                const overdueBody = document.getElementById('dash-recent-payments'); // WE NEED TO BE CAREFUL: OVERDUE is now on the left? No, user said switch Recent and Upcoming.
+                // Render Overdue Payments List
+                const overdueListContainer = document.getElementById('dash-overdue-list');
+                if (overdueListContainer) {
+                    if (overdueTenants.length === 0) {
+                        overdueListContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">No overdue payments.</div>';
+                    } else {
+                        overdueListContainer.innerHTML = `
+                            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                                        <th style="padding-bottom: 12px; font-weight: 600;">Tenant</th>
+                                        <th style="padding-bottom: 12px; font-weight: 600;">Property</th>
+                                        <th style="padding-bottom: 12px; font-weight: 600;">Due Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${overdueTenants.slice(0, 5).map(t => {
+                                        const pName = t.propertyId ? ((properties.find(prop => String(prop.id) === String(t.propertyId)) || {}).name || 'Unassigned') : 'Unassigned';
+                                        const dueDate = new Date(today.getFullYear(), today.getMonth(), t.rent_due_day || 1);
+                                        return `
+                                        <tr style="border-bottom: 1px solid var(--border);">
+                                            <td style="padding: 10px 0; font-weight: 600;">${esc(t.name)}</td>
+                                            <td style="padding: 10px 0; color: var(--text-muted);">${esc(pName)}</td>
+                                            <td style="padding: 10px 0; color: var(--danger); font-weight: 600;">
+                                                <i class="fas fa-exclamation-triangle"></i> ${dueDate.toLocaleDateString(undefined, {month:'short', day:'numeric'})}
+                                            </td>
+                                        </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                }
                 // Re-reading user request: "switch the position of recent payments and upcoming payments so that its uniform to view."
                 // In Row 3: Upcoming is now Left, Recent is now Right.
                 // Row 2: "Pending Payments" -> "Overdue Payments".
@@ -1026,10 +1072,10 @@
                                         const t = tenants.find(ten => String(ten.unit) === String(p.unit)) || { name: p.tenantName || 'Unknown' };
                                         const pName = t.propertyId ? ((properties.find(prop => String(prop.id) === String(t.propertyId)) || {}).name || 'Unassigned') : 'Unassigned';
                                         return `
-                                        <tr style="border-bottom: 1px solid var(--border);">
+                                         <tr style="border-bottom: 1px solid var(--border);">
                                             <td style="padding: 12px 0; font-weight: 600;">${esc(t.name)}</td>
                                             <td style="padding: 12px 0; color: var(--text-muted);">${esc(pName)}</td>
-                                            <td style="padding: 12px 0; font-weight: 600; color: var(--success);">₱${(parseFloat(p.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                            <td style="padding: 12px 0; font-weight: 600; color: var(--success);">${currencySymbol}${(parseFloat(p.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                             <td style="padding: 12px 0; color: var(--text-muted);"><i class="far fa-calendar-alt"></i> ${new Date(p.timestamp).toLocaleDateString()}</td>
                                         </tr>
                                         `;
@@ -1041,6 +1087,32 @@
                 }
 
                 const pendingPayments = payments.filter(p => p.status !== 'verified');
+
+                // Populate Pending Verification card
+                const pendVerifPill = document.getElementById('dash-pending-verif-pill');
+                const pendVerifList = document.getElementById('dash-pending-verif-list');
+                if (pendVerifPill) {
+                    pendVerifPill.innerText = `${pendingPayments.length} Pending`;
+                    pendVerifPill.style.display = pendingPayments.length > 0 ? 'inline-block' : 'none';
+                }
+                if (pendVerifList) {
+                    if (pendingPayments.length === 0) {
+                        pendVerifList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">No pending verifications.</div>';
+                    } else {
+                        const recent3 = pendingPayments.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 3);
+                        pendVerifList.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+                            ${recent3.map(p => {
+                                const pt = tenants.find(ten => ten.unit === p.unit) || { name: 'Unknown' };
+                                return `<tr style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding:8px 4px; font-weight:500;">${esc(pt.name)}</td>
+                                    <td style="padding:8px 4px; color:var(--text-muted);">Unit ${esc(p.unit)}</td>
+                                    <td style="padding:8px 4px; text-align:right; color:var(--warning); font-weight:600;">${currencySymbol}${Number(p.amount || 0).toLocaleString()}</td>
+                                </tr>`;
+                            }).join('')}
+                        </table>
+                        ${pendingPayments.length > 3 ? `<div style="text-align:center; padding:8px; color:var(--text-muted); font-size:0.8rem;">+${pendingPayments.length - 3} more pending</div>` : ''}`;
+                    }
+                }
 
                 // Render Upcoming Payments (Now on the Left side of Row 3)
                 const upcomingBody = document.getElementById('dash-upcoming-payments');
@@ -1079,7 +1151,7 @@
                             <tr style="border-bottom: 1px solid var(--border);">
                                 <td style="padding: 12px 0; font-weight: 600;">${esc(t.name)}</td>
                                 <td style="padding: 12px 0; color: var(--text-muted);">${esc(pName)}</td>
-                                <td style="padding: 12px 0; font-weight: 600; color: var(--warning);">₱${(parseFloat(t.leaseAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td style="padding: 12px 0; font-weight: 600; color: var(--warning);">${currencySymbol}${(parseFloat(t.leaseAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                 <td style="padding: 12px 0;">
                                     <span class="status-pill pill-warning" style="font-size: 0.85rem;"><i class="fas fa-calendar-alt"></i> ${dueDate.toLocaleDateString()}</span>
                                 </td>
@@ -1239,7 +1311,7 @@
                     });
 
                     // --- Closed tickets: resolved table ---
-                    // Store closed tickets data for sorting
+                    // Store closed tickets data for sorting + pagination
                     window._closedTickets = closedTickets;
                     window._tenants = tenants;
                     if (resolvedSection && resolvedBody) {
@@ -1247,7 +1319,7 @@
                             resolvedSection.style.display = 'none';
                         } else {
                             resolvedSection.style.display = 'block';
-                            // Re-apply current sort state so polling doesn't reset user's sort
+                            // Re-apply current sort state so polling doesn't reset user's sort/page
                             applyResolvedSort();
                         }
                     }
@@ -1305,6 +1377,27 @@
         // Track current sort state
         window._resolvedSortCol = 'date';
         window._resolvedSortDir = 'desc';
+        window._sortedClosedTickets = [];
+
+        // Render one page of the sorted resolved tickets
+        function renderResolvedPage() {
+            const all = window._sortedClosedTickets || [];
+            const tenants = window._tenants || [];
+            const resolvedBody = document.getElementById('resolved-tickets-body');
+            if (!resolvedBody) return;
+
+            const totalPages = Math.ceil(all.length / ITEMS_PER_PAGE);
+            if (currentResolvedPage > totalPages && totalPages > 0) currentResolvedPage = totalPages;
+            const start = (currentResolvedPage - 1) * ITEMS_PER_PAGE;
+            const pageData = all.slice(start, start + ITEMS_PER_PAGE);
+
+            renderResolvedRows(pageData, tenants);
+
+            renderPagination('resolved-pagination', currentResolvedPage, totalPages, (page) => {
+                currentResolvedPage = page;
+                renderResolvedPage();
+            });
+        }
 
         // Core sort + render (used by both header clicks and polling refresh)
         function applyResolvedSort() {
@@ -1326,7 +1419,8 @@
                 return 0;
             });
 
-            renderResolvedRows(sorted, tenants);
+            window._sortedClosedTickets = sorted;
+            renderResolvedPage();
 
             // Update header icons
             document.querySelectorAll('#resolved-tickets-table thead th[data-sort]').forEach(th => {
@@ -1341,7 +1435,7 @@
             });
         }
 
-        // Header click handler: toggle direction, then apply
+        // Header click handler: toggle direction, reset to page 1, then apply
         function sortResolvedTickets(col) {
             if (window._resolvedSortCol === col) {
                 window._resolvedSortDir = window._resolvedSortDir === 'desc' ? 'asc' : 'desc';
@@ -1349,6 +1443,7 @@
                 window._resolvedSortCol = col;
                 window._resolvedSortDir = col === 'date' ? 'desc' : 'asc';
             }
+            currentResolvedPage = 1; // reset to page 1 on sort change
             applyResolvedSort();
         }
 
@@ -1412,39 +1507,46 @@
         async function handleTicketCheck(checkbox, id, field) {
             const repChk = document.getElementById(`chk-rep-${id}`);
             const resChk = document.getElementById(`chk-res-${id}`);
-            
+
             if (!repChk || !resChk) return;
-            
-            const isRep = repChk.checked;
-            const isRes = resChk.checked;
-            
-            if (isRep && isRes) {
-                let confirmed = false;
+
+            // "Issue Resolved" checkbox → close ticket (single atomic call, server sets reported=true too)
+            if (field === 'status' && checkbox.checked) {
+                checkbox.checked = false; // revert visually; re-render will show correct state after save
                 openConfirmModal(
-                    'Close & Lock Ticket?', 
-                    'Are you sure you want to mark this issue as resolved? It will be permanently grayed out and you will not be able to edit it again.', 
-                    'danger', 
+                    'Close & Lock Ticket?',
+                    'Mark this issue as resolved? It will move to the Resolved Tickets table and cannot be edited.',
+                    'danger',
                     async () => {
-                        confirmed = true;
-                        if (field === 'reported') {
-                            await updateTicketStatusNoRefresh(id, 'status', 'closed');
-                            await updateTicketStatus(id, 'reported', true);
-                        } else {
-                            await updateTicketStatusNoRefresh(id, 'reported', true);
-                            await updateTicketStatus(id, 'status', 'closed');
-                        }
+                        await updateTicketStatus(id, 'status', 'closed');
                     }
                 );
-                
-                const oldClose = closeConfirmModal;
-                window.closeConfirmModal = function() {
-                    if (!confirmed) checkbox.checked = false; // Revert the checkbox visually
-                    window.closeConfirmModal = oldClose; // Restore original close function
-                    oldClose();
-                };
-            } else {
-                const val = field === 'status' ? (checkbox.checked ? 'closed' : 'open') : checkbox.checked;
-                await updateTicketStatus(id, field, val);
+                return;
+            }
+
+            // "Issue Resolved" unchecked → reopen (if already open it's a no-op but handle gracefully)
+            if (field === 'status' && !checkbox.checked) {
+                await updateTicketStatus(id, 'status', 'open');
+                return;
+            }
+
+            // "Reported to Fixer" checkbox
+            if (field === 'reported') {
+                await updateTicketStatus(id, 'reported', checkbox.checked);
+
+                // If checking (not unchecking), trigger fixer notification
+                if (checkbox.checked) {
+                    fetch(`${API_URL}/tickets/${id}/forward`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: csrfHeaders()
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) console.error('Fixer notification failed:', data.error);
+                    })
+                    .catch(e => console.error('Fixer notification failed:', e));
+                }
             }
         }
 
@@ -1511,49 +1613,6 @@
             });
         }
 
-        // Search Filter Logic
-        document.getElementById('global-search').addEventListener('input', function(e) {
-            const query = e.target.value.toLowerCase();
-            const activeSection = document.querySelector('.content-section.active')?.id;
-
-            // Helper: reset visibility of all matching elements
-            const showAll = (selector) => document.querySelectorAll(selector).forEach(el => el.style.display = '');
-            // Helper: filter elements by text content; display is the value to set when visible
-            const filter = (selector, display = '') =>
-                document.querySelectorAll(selector).forEach(el => {
-                    el.style.display = el.innerText.toLowerCase().includes(query) ? display : 'none';
-                });
-
-            if (activeSection === 'properties-section') {
-                if (!query) { showAll('#properties-grid .card'); return; }
-                filter('#properties-grid .card', 'block');
-
-            } else if (activeSection === 'tenants-section') {
-                if (!query) { showAll('#tenants-table-body tr'); return; }
-                filter('#tenants-table-body tr', '');
-
-            } else if (activeSection === 'support-section') {
-                if (!query) {
-                    showAll('#tickets-list .card');
-                    showAll('#resolved-tickets-body tr');
-                    return;
-                }
-                filter('#tickets-list .card', 'block');
-                filter('#resolved-tickets-body tr', '');
-
-            } else if (activeSection === 'finance-section' || activeSection === 'payments-section') {
-                if (!query) {
-                    showAll('#payments-history-body tr');
-                    showAll('#expenses-body tr');
-                    showAll('#finance-upcoming-body tr');
-                    return;
-                }
-                filter('#payments-history-body tr', '');
-                filter('#expenses-body tr', '');
-                filter('#finance-upcoming-body tr', '');
-            }
-        });
-
         // --- Finance Hub Logic ---
         async function refreshFinanceHub() {
             try {
@@ -1578,6 +1637,11 @@
             const tbody = document.getElementById('finance-upcoming-body');
             if (!tbody) return;
             tbody.innerHTML = '';
+            const currencySymbol = window.appSettings.currency || '₱';
+            const getOrdinal = (n) => {
+                const s = ["th", "st", "nd", "rd"], v = (n || 0) % 100;
+                return (s[(v - 20) % 10] || s[v] || s[0]) || "th";
+            };
 
             const now = new Date();
             const currentMonth = now.getMonth();
@@ -1613,7 +1677,7 @@
                             <div style="font-weight:500">${esc(prop.name) || 'Unassigned'}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted)">Unit ${esc(t.unit)}</div>
                         </td>
-                        <td style="font-weight:600; font-family:var(--font-mono)">₱${(parseFloat(t.leaseAmount) || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                        <td style="font-weight:600; font-family:var(--font-mono)">${currencySymbol}${(parseFloat(t.leaseAmount) || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</td>
                         <td style="color:var(--text-muted); font-size:0.9rem">Every ${t.rent_due_day}${getOrdinal(t.rent_due_day)}</td>
                         <td style="text-align:right">
                             <span class="status-pill pill-warning">Upcoming</span>
@@ -1632,6 +1696,7 @@
             tbody.setAttribute('data-sort-dir', 'desc');
             
             // Only show verified payments or manual ones
+            const currencySymbol = window.appSettings.currency || '₱';
             const history = payments.filter(p => p.status === 'verified').sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
             
             if (history.length === 0) {
@@ -1655,7 +1720,7 @@
                         property = properties.find(prop => String(prop.id) === String(t.propertyId));
                     }
                 }
-                const pName = property ? property.name : 'Unassigned';
+                const pName = property ? property.name : (p.propertyName || 'Unassigned');
                 
                 tbody.innerHTML += `
                     <tr>
@@ -1664,7 +1729,7 @@
                             <div style="font-weight:500">${esc(pName)}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted)">Unit ${esc(p.unit)}</div>
                         </td>
-                        <td style="font-weight:600; color:var(--success); font-family:var(--font-mono)">₱${(parseFloat(p.amount) || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td style="font-weight:600; color:var(--success); font-family:var(--font-mono)">${currencySymbol}${(parseFloat(p.amount) || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                         <td>
                             <div style="font-size:0.85rem">${dateStr}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted)">${timeStr}</div>
@@ -1689,6 +1754,7 @@
             const tbody = document.getElementById('expenses-body');
             if(!tbody) return;
             tbody.innerHTML = '';
+            const currencySymbol = window.appSettings.currency || '₱';
             
             // Set explicit default sort flag so chronological toggle works correctly
             tbody.setAttribute('data-sort-dir', 'desc');
@@ -1702,7 +1768,7 @@
                 tbody.innerHTML += `
                     <tr>
                         <td>${esc(e.category)}</td>
-                        <td style="font-weight:600; color:var(--danger); font-family:var(--font-mono)">₱${e.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td style="font-weight:600; color:var(--danger); font-family:var(--font-mono)">${currencySymbol}${e.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                         <td style="color:var(--text-muted); font-size:0.9rem">${esc(e.description) || '—'}</td>
                         <td style="color:var(--text-muted); font-size:0.85rem">${new Date(e.timestamp).toLocaleDateString()}</td>
                         <td style="text-align: right;">
@@ -1795,9 +1861,10 @@
         }
 
         function updateFinanceSummary(summary) {
-            document.getElementById('total-collected').innerText = `₱${summary.totalCollected.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-            document.getElementById('total-expenses').innerText = `₱${summary.totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-            document.getElementById('net-profit').innerText = `₱${summary.netProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            const currencySymbol = window.appSettings.currency || '₱';
+            document.getElementById('total-collected').innerText = `${currencySymbol}${summary.totalCollected.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('total-expenses').innerText = `${currencySymbol}${summary.totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('net-profit').innerText = `${currencySymbol}${summary.netProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
         }
 
         async function openManualPaymentModal() {
@@ -1851,7 +1918,8 @@
                 notes: document.getElementById('payment-notes').value
             };
 
-            openConfirmModal('Log Payment', `Log a manual payment of ₱${data.amount.toLocaleString(undefined, {minimumFractionDigits: 2})} for ${data.tenantName}?`, 'info', async () => {
+            const currencySymbol = document.getElementById('currency')?.value || '₱'; // Fallback to current settings UI
+            openConfirmModal('Log Payment', `Log a manual payment of ${currencySymbol}${data.amount.toLocaleString(undefined, {minimumFractionDigits: 2})} for ${data.tenantName}?`, 'info', async () => {
                 try {
                     const res = await fetch(`${API_URL}/payments`, {
                         method: 'POST', credentials: 'include',
@@ -1878,7 +1946,8 @@
                 description: document.getElementById('expense-desc').value
             };
 
-            openConfirmModal('Log Expense', `Log an expense of ₱${data.amount.toLocaleString(undefined, {minimumFractionDigits: 2})} for ${data.category}?`, 'info', async () => {
+            const currencySymbol = document.getElementById('currency')?.value || '₱';
+            openConfirmModal('Log Expense', `Log an expense of ${currencySymbol}${data.amount.toLocaleString(undefined, {minimumFractionDigits: 2})} for ${data.category}?`, 'info', async () => {
                 try {
                     const res = await fetch(`${API_URL}/expenses`, {
                         method: 'POST', credentials: 'include',
@@ -1898,7 +1967,23 @@
         };
 
         // Initialize App
-        refreshDashboard();
+        async function init() {
+            try {
+                // Sequential load to ensure data is available for calculating dashboard metrics
+                await refreshProperties();
+                await refreshTenants();
+                await refreshDashboard();
+            } catch (err) {
+                console.error("Initial load refresh failed:", err);
+            }
+        }
+
+        // Run init on load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
         
         // Live Clock Initializer
         function updateLiveClock() {
@@ -1916,7 +2001,7 @@
             const activeId = document.querySelector('.content-section.active')?.id;
             if (activeId === 'dashboard-section' || activeId === 'support-section') {
                 refreshDashboard();
-            } else if (activeId === 'payments-section' || activeId === 'finance-section') {
+            } else if (activeId === 'finance-section') {
                 refreshFinanceHub();
                 refreshDashboard(); // keeps stat cards in sync
             }

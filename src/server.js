@@ -92,10 +92,15 @@ if (fallbackOwnerId) {
                     r.adminId = rootAdmin.id;
                     updated = true;
                 }
+                // Migration: Ensure properties have createdAt
+                if (col === 'properties' && !r.createdAt) {
+                    r.createdAt = new Date().toISOString();
+                    updated = true;
+                }
             });
             if (updated) {
                 db.set(col, records).write();
-                console.log(`✅ Migrated orphaned records in '${col}' to Root Admin.`);
+                console.log(`✅ Migrated orphaned records or added missing fields in '${col}' to Root Admin.`);
             }
         }
     });
@@ -514,6 +519,16 @@ app.post('/api/register', (req, res) => {
         return res.status(400).json({ success: false, error: 'Invalid or already claimed invite code.' });
     }
 
+    // Check for 24h expiration
+    const inviteDate = new Date(invite.createdAt);
+    const now = new Date();
+    const hoursOld = (now - inviteDate) / (1000 * 60 * 60);
+
+    if (hoursOld > 24) {
+        db.get('invites').find({ code: invite.code }).assign({ status: 'expired' }).write();
+        return res.status(400).json({ success: false, error: 'This invitation code has expired (valid for 24h).' });
+    }
+
     // Check if username is taken
     let admins = db.get('admins').value() || [];
     const usernameTaken = admins.some(a => a.username.toLowerCase() === username.toLowerCase());
@@ -607,6 +622,18 @@ app.post('/api/tenants', authenticateAdmin, (req, res) => {
         return res.status(400).json({ success: false, error: `Unit ${tenant.unit} already exists.` });
     }
 
+    // Enforce property unit capacity
+    if (tenant.propertyId) {
+        const property = db.get('properties').find({ id: tenant.propertyId, adminId: req.admin.id }).value();
+        if (property) {
+            const maxUnits = parseInt(property.units) || 0;
+            const currentCount = db.get('tenants').filter({ propertyId: tenant.propertyId, adminId: req.admin.id }).value().length;
+            if (maxUnits > 0 && currentCount >= maxUnits) {
+                return res.status(400).json({ success: false, error: `This property is at full capacity (${maxUnits} unit${maxUnits !== 1 ? 's' : ''}). Increase the unit count in Property settings first.` });
+            }
+        }
+    }
+
     // Convert numeric fields
     if (tenant.leaseAmount) tenant.leaseAmount = parseFloat(tenant.leaseAmount);
     if (tenant.advancePayment) tenant.advancePayment = parseFloat(tenant.advancePayment);
@@ -624,7 +651,26 @@ app.post('/api/tenants', authenticateAdmin, (req, res) => {
 app.put('/api/tenants/:unit', authenticateAdmin, (req, res) => {
     const { unit } = req.params;
     const updates = req.body;
-    
+
+    // If moving to a different property, enforce capacity of the new property
+    if (updates.propertyId) {
+        const currentTenant = db.get('tenants').find({ unit, adminId: req.admin.id }).value();
+        const isChangingProperty = !currentTenant || String(currentTenant.propertyId) !== String(updates.propertyId);
+        if (isChangingProperty) {
+            const property = db.get('properties').find({ id: updates.propertyId, adminId: req.admin.id }).value();
+            if (property) {
+                const maxUnits = parseInt(property.units) || 0;
+                // Count tenants in new property EXCLUDING the current tenant (they don't add to count)
+                const currentCount = db.get('tenants')
+                    .filter(t => t.propertyId === updates.propertyId && t.adminId === req.admin.id && t.unit !== unit)
+                    .value().length;
+                if (maxUnits > 0 && currentCount >= maxUnits) {
+                    return res.status(400).json({ success: false, error: `Target property is at full capacity (${maxUnits} unit${maxUnits !== 1 ? 's' : ''}). Increase the unit count in Property settings first.` });
+                }
+            }
+        }
+    }
+
     // Convert numeric fields if they exist
     if (updates.leaseAmount) updates.leaseAmount = parseFloat(updates.leaseAmount);
     if (updates.advancePayment) updates.advancePayment = parseFloat(updates.advancePayment);
@@ -667,12 +713,19 @@ app.post('/api/tickets/:id/forward', authenticateAdmin, (req, res) => {
     const settings = db.get('settings').find({ adminId: req.admin.id }).value() || {};
 
     if (!ticket) return res.status(404).json({ error: "Ticket not found" });
-    if (!settings.fixer_id) return res.status(400).json({ error: "Fixer ID not configured in settings." });
+    if (!settings.fixer_id) return res.status(400).json({ error: "Fixer Chat ID not configured in Settings. Have your fixer send /myid to the bot to get their numeric ID." });
 
-    console.log(`📡 Forwarding ticket #${id} to Fixer (${settings.fixer_id})...`);
+    // Normalize: strip leading @ if present, then require numeric ID
+    const rawFixerId = String(settings.fixer_id).trim().replace(/^@/, '');
+    const fixerChatId = /^\d+$/.test(rawFixerId) ? parseInt(rawFixerId, 10) : null;
+    if (!fixerChatId) {
+        return res.status(400).json({ error: "Fixer Chat ID must be a numeric Telegram user ID (e.g. 123456789). Have your fixer send /myid to the bot to get their ID." });
+    }
+
+    console.log(`📡 Forwarding ticket #${id} to Fixer [ID: ${fixerChatId}]...`);
 
     bot.telegram.sendMessage(
-        settings.fixer_id,
+        fixerChatId,
         `🛠️ **Maintenance Request Forwarded:**\n\n**Unit**: ${ticket.unit}\n**Issue**: ${ticket.issue}\n**Tenant**: ${ticket.tenantName}\n\nPlease attend to this issue.`,
         { parse_mode: 'Markdown' }
     ).catch(err => console.error("Failed to notify fixer:", err));
@@ -681,9 +734,9 @@ app.post('/api/tickets/:id/forward', authenticateAdmin, (req, res) => {
     if (ticket.media && ticket.media.length > 0) {
         ticket.media.forEach(m => {
             if (m.type === 'photo') {
-                bot.telegram.sendPhoto(settings.fixer_id, m.fileId, { caption: `📸 From Unit ${ticket.unit}` });
+                bot.telegram.sendPhoto(fixerChatId, m.fileId, { caption: `📸 From Unit ${ticket.unit}` }).catch(err => console.error("Failed to send media to fixer:", err));
             } else if (m.type === 'video') {
-                bot.telegram.sendVideo(settings.fixer_id, m.fileId, { caption: `🎥 From Unit ${ticket.unit}` });
+                bot.telegram.sendVideo(fixerChatId, m.fileId, { caption: `🎥 From Unit ${ticket.unit}` }).catch(err => console.error("Failed to send media to fixer:", err));
             }
         });
     }
@@ -705,6 +758,12 @@ app.put('/api/tickets/:id', authenticateAdmin, (req, res) => {
         return res.status(404).json({ success: false, error: "Ticket not found." });
     }
 
+    // When closing a ticket, also mark it as reported (atomic close)
+    if (updates.status === 'closed') {
+        updates.reported = true;
+        updates.closedAt = new Date().toISOString();
+    }
+
     db.get('tickets').find({ id: targetId, adminId: req.admin.id }).assign(updates).write();
     auditLog(req.admin.id, 'update', 'ticket', { id: targetId, status: updates.status });
     res.json({ success: true, message: `Ticket ${targetId} updated successfully.` });
@@ -718,6 +777,10 @@ app.get('/api/settings', authenticateAdmin, (req, res) => {
 
 // Update settings
 app.post('/api/settings', authenticateAdmin, (req, res) => {
+    // Normalize fixer_id: strip leading @ so numeric-only IDs are stored
+    if (req.body.fixer_id) {
+        req.body.fixer_id = String(req.body.fixer_id).trim().replace(/^@/, '');
+    }
     const newSettings = { ...req.body, adminId: req.admin.id };
     const existing = db.get('settings').find({ adminId: req.admin.id }).value();
     if (existing) {
@@ -748,9 +811,10 @@ app.post('/api/properties', authenticateAdmin, (req, res) => {
 
     const property = {
         id: uuidv4(),
-        adminId: req.admin.id, // Assign to current admin
+        adminId: req.admin.id,
         ...req.body,
-        status: req.body.status || 'Active'
+        status: req.body.status || 'Active',
+        createdAt: new Date().toISOString()
     };
     db.get('properties').push(property).write();
     auditLog(req.admin.id, 'create', 'property', { name: property.name, id: property.id });
@@ -1052,6 +1116,16 @@ cron.schedule('0 * * * *', () => {
     if (expiredOtps.length > 0) {
         expiredOtps.forEach(o => db.get('otps').remove({ telegramId: o.telegramId }).write());
         console.log(`🧹 Cleaned up ${expiredOtps.length} expired OTP(s).`);
+    }
+
+    // Clean up expired invitations (older than 24h and still 'active')
+    const invites = db.get('invites').value() || [];
+    const expiredInvites = invites.filter(i => i.status === 'active' && (now - new Date(i.createdAt)) / (1000 * 60 * 60) > 24);
+    if (expiredInvites.length > 0) {
+        expiredInvites.forEach(i => {
+            db.get('invites').find({ code: i.code }).assign({ status: 'expired' }).write();
+        });
+        console.log(`🧹 Marked ${expiredInvites.length} invitation(s) as expired.`);
     }
 }, { scheduled: true, timezone: "Asia/Manila" });
 

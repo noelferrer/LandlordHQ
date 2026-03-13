@@ -279,6 +279,14 @@ bot.on('video', async (ctx) => {
     }
 });
 
+// --- /myid command: helps fixer/admin find their numeric Telegram chat ID ---
+bot.command('myid', (ctx) => {
+    ctx.reply(
+        `🆔 Your Telegram numeric Chat ID is:\n\n<code>${ctx.from.id}</code>\n\nCopy this number into the <b>Fixer Chat ID</b> field in LandlordHQ Settings.`,
+        { parse_mode: 'HTML' }
+    );
+});
+
 // --- Owner/Admin Commands ---
 
 bot.command('addtenant', isAdmin, (ctx) => {
