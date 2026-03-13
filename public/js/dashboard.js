@@ -555,10 +555,13 @@
         }
 
 
+        // Pagination containers that should be centre-aligned (grid/table views)
+        const CENTRE_ALIGNED_PAGINATION = new Set(['properties-pagination', 'tenants-pagination']);
+
         function renderPagination(containerId, currentPage, totalPages, onPageChange) {
             let container = document.getElementById(containerId);
             if (!container) {
-                // If container doesn't exist, we might need to create it (e.g. at bottom of grid/table)
+                // If container doesn't exist, create it (e.g. at bottom of grid/table)
                 const parentId = containerId === 'properties-pagination' ? 'properties-grid' : 'tenants-table-body';
                 const parentElem = document.getElementById(parentId);
                 if (parentElem) {
@@ -579,9 +582,21 @@
                     return;
                 }
             }
-            
+
             container.innerHTML = '';
             if (totalPages <= 1) return;
+
+            // Right-align for card-based tables; centre for properties/tenants grid
+            container.style.display = 'flex';
+            container.style.gap = '8px';
+            container.style.marginTop = '16px';
+            if (CENTRE_ALIGNED_PAGINATION.has(containerId)) {
+                container.style.justifyContent = 'center';
+                container.style.padding = '20px 0';
+            } else {
+                container.style.justifyContent = 'flex-end';
+                container.style.padding = '8px 0 0 0';
+            }
 
             const createBtn = (text, page, disabled, active) => {
                 const btn = document.createElement('button');
@@ -885,7 +900,7 @@
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-bottom: 24px;">
                         <div class="card" style="padding: 30px;">
                             <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 25px;">Property Details</h3>
                             <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -917,18 +932,76 @@
                                 </div>
                                 <div>
                                     <div style="font-size: 1.5rem; font-weight: 800;">${activeTenants}</div>
-                                    <div style="font-size: 0.85rem; color: var(--text-muted);">Active Tenant</div>
+                                    <div style="font-size: 0.85rem; color: var(--text-muted);">Active Tenant${activeTenants !== 1 ? 's' : ''}</div>
                                 </div>
                             </div>
                             <div class="card" style="padding: 24px; display: flex; align-items: center; gap: 20px;">
                                 <div class="stat-icon-lg bg-success">
-                                    <i class="fas fa-file-signature"></i>
+                                    <i class="fas fa-door-open"></i>
                                 </div>
                                 <div>
-                                    <div style="font-size: 1.5rem; font-weight: 800;">${activeLeases}</div>
-                                    <div style="font-size: 0.85rem; color: var(--text-muted);">Active Lease</div>
+                                    <div style="font-size: 1.5rem; font-weight: 800;">${activeTenants}/${parseInt(p.units) || 0}</div>
+                                    <div style="font-size: 0.85rem; color: var(--text-muted);">Units Occupied</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Tenants in this Property -->
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(43, 122, 255, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                                <i class="fas fa-user-friends"></i>
+                            </div>
+                            <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Tenants Leasing in This Property</h3>
+                            <span class="status-pill pill-info" style="font-size: 0.75rem;">${pTenants.length} tenant${pTenants.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            ${pTenants.length === 0 ? `
+                                <div style="padding: 30px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                                    <i class="fas fa-user-slash" style="font-size: 1.5rem; margin-bottom: 10px; display: block; opacity: 0.4;"></i>
+                                    No tenants assigned to this property.
+                                </div>
+                            ` : `
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align: left;">Tenant</th>
+                                            <th style="text-align: left;">Unit</th>
+                                            <th style="text-align: left;">Lease Amount</th>
+                                            <th style="text-align: left;">Move-in Date</th>
+                                            <th style="text-align: left;">Due Day</th>
+                                            <th style="text-align: left;">Status</th>
+                                            <th style="text-align: right;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${pTenants.map(t => {
+                                            const currencySymbol = window.appSettings.currency || '₱';
+                                            const statusClass = t.status === 'Active' ? 'pill-success' : 'pill-warning';
+                                            const moveIn = t.moveInDate ? new Date(t.moveInDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                                            return `
+                                            <tr style="border-bottom: 1px solid var(--border);">
+                                                <td style="padding: 12px 0; font-weight: 600;">${esc(t.name)}</td>
+                                                <td style="padding: 12px 8px; color: var(--text-muted);">Unit ${esc(t.unit)}</td>
+                                                <td style="padding: 12px 8px; font-weight: 600; color: var(--success); font-family: var(--font-mono);">
+                                                    ${currencySymbol}${(parseFloat(t.leaseAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td style="padding: 12px 8px; color: var(--text-muted);">${moveIn}</td>
+                                                <td style="padding: 12px 8px; color: var(--text-muted); text-align: center;">Day ${t.rent_due_day || 1}</td>
+                                                <td style="padding: 12px 8px;">
+                                                    <span class="status-pill ${statusClass}" style="font-size: 0.75rem;">${esc(t.status || 'Active')}</span>
+                                                </td>
+                                                <td style="padding: 12px 0; text-align: right;">
+                                                    <button class="btn btn-outline" style="width: auto; padding: 5px 12px; font-size: 0.8rem; border-radius: 8px;" onclick="editTenant('${esc(t.unit)}')">
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                </td>
+                                            </tr>`;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            `}
                         </div>
                     </div>
                 `;
