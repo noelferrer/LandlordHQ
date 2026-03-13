@@ -41,7 +41,10 @@ bot.command('claim', (ctx) => {
     if (args.length < 1) return ctx.reply("Usage: /claim <username>");
 
     const username = args[0].toLowerCase();
-    
+
+    // Re-read DB from disk (server may have written new admins in a separate process)
+    db.read();
+
     // Find the dormant admin
     const admin = db.get('admins').find({ username }).value();
     
