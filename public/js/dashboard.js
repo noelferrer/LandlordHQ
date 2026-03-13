@@ -291,6 +291,11 @@
                                 openConfirmModal('Updated!', 'Tenant details have been updated.', 'success');
                                 closeTenantModal();
                                 refreshTenants();
+                                // If we're viewing a property detail, refresh it immediately
+                                const activeSection = document.querySelector('.content-section.active');
+                                if (activeSection && activeSection.id === 'property-detail-section' && window._currentDetailPropertyId) {
+                                    showPropertyDetail(window._currentDetailPropertyId);
+                                }
                             } else {
                                 const err = await res.json();
                                 openConfirmModal('Error', err.error || 'Failed to update tenant.', 'danger');
@@ -859,6 +864,7 @@
         }
 
         async function showPropertyDetail(id) {
+            window._currentDetailPropertyId = id; // remember for post-edit refresh
             try {
                 const [propRes, tenantRes] = await Promise.all([
                     fetch(`${API_URL}/properties?t=${Date.now()}`, { credentials: 'include' }),
