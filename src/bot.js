@@ -379,20 +379,22 @@ bot.catch((err, ctx) => {
     console.log(`Ooops, encountered an error for ${ctx.updateType}`, err);
 });
 
-// Launch Bot
-if (process.env.TELEGRAM_BOT_TOKEN) {
-    console.log('🚀 CondoBot is live and running!');
-    setupReminders(bot);
-    
-    bot.launch().catch(err => {
-        console.error('Failed to launch CondoBot:', err);
-    });
-} else {
-    console.error('❌ ERROR: TELEGRAM_BOT_TOKEN is missing in .env file.');
-}
+// Launch Bot only when run directly (not when imported by server.js)
+if (require.main === module) {
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+        console.log('🚀 CondoBot is live and running!');
+        setupReminders(bot);
 
-// Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+        bot.launch().catch(err => {
+            console.error('Failed to launch CondoBot:', err);
+        });
+    } else {
+        console.error('❌ ERROR: TELEGRAM_BOT_TOKEN is missing in .env file.');
+    }
+
+    // Enable graceful stop
+    process.once('SIGINT', () => bot.stop('SIGINT'));
+    process.once('SIGTERM', () => bot.stop('SIGTERM'));
+}
 
 module.exports = bot;
