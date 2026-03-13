@@ -2192,11 +2192,6 @@
             if (el) el.innerText = timeStr;
             const elD = document.getElementById('live-date');
             if (elD) elD.innerText = dateStr;
-            // Header date/time (top-right corner)
-            const hDate = document.getElementById('header-date');
-            const hTime = document.getElementById('header-time');
-            if (hDate) hDate.innerText = dateStr;
-            if (hTime) hTime.innerText = timeStr;
         }
         setInterval(updateLiveClock, 1000);
         updateLiveClock();
