@@ -236,10 +236,10 @@
         <p class="subtitle">Enter your details and we'll send you a verification code</p>
         
         <label>Landlord Username</label>
-        <input type="text" id="username" placeholder="e.g. johndoe" required onkeydown="if(event.key==='Enter') requestOtp()">
+        <input type="text" id="username" placeholder="e.g. johndoe" required>
         <div class="error-message" id="step1-error"></div>
         
-        <button onclick="requestOtp()" id="btn-continue">
+        <button id="btn-continue">
             <span class="btn-text">Continue</span>
             <div class="loading-spinner"></div>
             <i class="fas fa-arrow-right btn-icon"></i>
@@ -264,20 +264,39 @@
         </div>
         <div class="error-message" id="step2-error"></div>
         
-        <button onclick="verifyOtp()" id="btn-verify">
+        <button id="btn-verify">
             <span class="btn-text">Verify</span>
             <div class="loading-spinner"></div>
         </button>
         
         <div class="footer-links">
-            <a onclick="goBack()">&larr; Back</a>
-            <a onclick="requestOtp()">Resend code</a>
+            <a id="link-back">&larr; Back</a>
+            <a id="link-resend">Resend code</a>
         </div>
     </div>
 
     <script>
         const inputs = document.querySelectorAll('.otp-box');
         
+        // --- Event Listeners Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Step 1: Username Input & Continue Button
+            const usernameInput = document.getElementById('username');
+            const continueBtn = document.getElementById('btn-continue');
+            
+            usernameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') requestOtp();
+            });
+            continueBtn.addEventListener('click', requestOtp);
+
+            // Step 2: Back & Resend Links
+            document.getElementById('link-back').addEventListener('click', goBack);
+            document.getElementById('link-resend').addEventListener('click', requestOtp);
+
+            // Verify Button
+            document.getElementById('btn-verify').addEventListener('click', verifyOtp);
+        });
+
         inputs.forEach((input, index) => {
             // Toggle filled class
             function toggleFilled() {
@@ -372,13 +391,13 @@
                 const username = document.getElementById('username').value;
                 const res = await fetch('/api/auth/verify', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code, username })
                 });
                 const data = await res.json();
                 
                 if (data.success) {
-                    localStorage.setItem('landlordhq_token', data.token);
                     window.location.href = '/';
                 } else {
                     err.innerText = data.error || "Invalid code.";
@@ -400,18 +419,10 @@
             document.getElementById('step1').style.display = 'block';
         }
         
-        // Auto-redirect if already logged in AND token is valid
-        const token = localStorage.getItem('landlordhq_token');
-        if (token) {
-            fetch('/api/tenants', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-            .then(res => {
-                if (res.ok) window.location.href = '/';
-                else localStorage.removeItem('landlordhq_token'); // Clear invalid token
-            })
-            .catch(err => console.error("Verify error:", err));
-        }
+        // Auto-redirect if already logged in (cookie-based)
+        fetch('/api/auth/check', { credentials: 'include' })
+            .then(res => { if (res.ok) window.location.href = '/'; })
+            .catch(() => {});
     </script>
 </body>
 </html>

@@ -344,15 +344,16 @@
     </div>
 
     <script>
-        const token = localStorage.getItem('landlordhq_token');
         const API_URL = ''; // Relative paths
-        
-        if (!token) {
-            window.location.replace('/login');
-        } else {
-            document.getElementById('app-content').style.display = 'block';
-            loadInvites();
-        }
+
+        // Check auth via cookie
+        fetch('/api/auth/check', { credentials: 'include' })
+            .then(r => {
+                if (!r.ok) { window.location.replace('/login'); return; }
+                document.getElementById('app-content').style.display = 'block';
+                loadInvites();
+            })
+            .catch(() => window.location.replace('/login'));
 
         function showError(msg) {
             const b = document.getElementById('error-banner');
@@ -363,15 +364,21 @@
             }
         }
 
+        function getCsrfToken() {
+            const match = document.cookie.match(/(?:^|;\s*)landlordhq_csrf=([^;]+)/);
+            return match ? match[1] : '';
+        }
+
         async function fetchAPI(endpoint, options = {}) {
-            options.headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${token}`
-            };
+            options.credentials = 'include';
+            // Add CSRF header for state-changing requests
+            if (options.method && !['GET', 'HEAD'].includes(options.method.toUpperCase())) {
+                options.headers = { ...options.headers, 'X-CSRF-Token': getCsrfToken() };
+            }
             try {
                 const res = await fetch(endpoint, options);
                 if (res.status === 401 || res.status === 403) {
-                    window.location.replace('/'); 
+                    window.location.replace('/');
                     return null;
                 }
                 return res.json();

@@ -24,6 +24,8 @@ db.defaults({
         { id: 4, category: "Move-in/Out", rule: "Move-in/out requires a 3-day prior notice and clearance form." }
     ],
     settings: [], // Array of { adminId, rent_reminder_days_before, currency, fixer_id, start_text, rules_text, clearance_text }
+    invites: [], // Array of { code, status, createdAt, claimedBy, claimedAt }
+    auditLog: [], // Array of { id, adminId, action, resource, details, timestamp }
 }).write();
 
 // Migration script block: if settings is still an object (from previous schema), convert it to an array

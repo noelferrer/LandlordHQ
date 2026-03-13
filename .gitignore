@@ -12,3 +12,7 @@ data/db.json
 
 # Mac OS
 .DS_Store
+
+# Logs and Local Tools
+debug.log
+.claude/

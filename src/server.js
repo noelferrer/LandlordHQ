@@ -1,6 +1,10 @@
 require('dotenv').config();
 const express = require('express');
+const helmet = require('helmet');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
+const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 const db = require('./database');
@@ -8,6 +12,17 @@ const { setupReminders } = require('./scheduler');
 const bot = require('./bot');
 const { v4: uuidv4 } = require('uuid');
 const { addMinutes, isAfter } = require('date-fns');
+
+const logFile = path.join(__dirname, '../debug.log');
+const formatArg = (a) => (typeof a === 'string' ? a : JSON.stringify(a));
+const debugLog = (msg) => {
+    const timestamp = new Date().toISOString();
+    try {
+        fs.appendFileSync(logFile, `[${timestamp}] ${msg}\n`);
+    } catch (_) { /* never crash the app due to a logging failure */ }
+};
+console.log = (msg, ...args) => debugLog([msg, ...args].map(formatArg).join(' '));
+console.error = (msg, ...args) => debugLog('ERROR: ' + [msg, ...args].map(formatArg).join(' '));
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy for rate limiting (Nginx/Caddy on VPS)
@@ -18,9 +33,26 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',')
     : ['http://localhost:3000'];
-app.use(cors({ origin: ALLOWED_ORIGINS }));
+app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+app.use(cookieParser());
 
-app.use(express.json()); // Express 5 built-in, no body-parser needed
+// Security headers — CSP allows inline styles/scripts and CDN resources used by the dashboard
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrcAttr: ["'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "https://api.telegram.org"],
+            connectSrc: ["'self'"],
+        }
+    }
+}));
+
+app.use(express.json({ limit: '1mb' })); // Express 5 built-in, cap payload size
+app.use(csrfProtection); // CSRF double-submit cookie check on all state-changing requests
 
 // --- Data Migration & Root Admin Setup ---
 const fallbackOwnerId = process.env.OWNER_TELEGRAM_ID; 
@@ -104,6 +136,113 @@ setInterval(() => {
     }
 }, 30 * 60 * 1000);
 
+// --- Input Validation Helpers ---
+const MAX_STRING_LENGTH = 500;
+const MAX_SHORT_STRING = 100;
+
+function validateString(val, maxLen = MAX_STRING_LENGTH) {
+    return typeof val === 'string' && val.trim().length > 0 && val.length <= maxLen;
+}
+
+function validateEmail(val) {
+    if (!val) return true; // optional field
+    return typeof val === 'string' && val.length <= MAX_SHORT_STRING && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+}
+
+function validatePhone(val) {
+    if (!val) return true; // optional field
+    return typeof val === 'string' && val.length <= 30 && /^[\d\s\-+().]+$/.test(val);
+}
+
+function validatePositiveNumber(val) {
+    const n = parseFloat(val);
+    return !isNaN(n) && n >= 0;
+}
+
+/**
+ * Helper to resolve IDs that might be numeric (timestamps) or strings (UUIDs)
+ * in lowdb find() queries.
+ */
+function resolveId(id) {
+    if (!id) return null;
+    if (!isNaN(id) && !isNaN(parseFloat(id))) {
+        return Number(id);
+    }
+    return id; // Return as string (UUID)
+}
+
+// --- OTP Hashing ---
+function hashOTP(code) {
+    return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+// --- Secure Random Code Generation ---
+function generateSecureCode(length = 8) {
+    return crypto.randomBytes(length).toString('base64url').substring(0, length).toUpperCase();
+}
+
+// --- Cookie Options ---
+const COOKIE_NAME = 'landlordhq_token';
+const CSRF_COOKIE_NAME = 'landlordhq_csrf';
+const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    path: '/'
+};
+const csrfCookieOptions = {
+    httpOnly: false, // Must be readable by JS
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000,
+    path: '/'
+};
+
+// --- CSRF Protection (Double-Submit Cookie) ---
+function generateCsrfToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+function csrfProtection(req, res, next) {
+    // Skip CSRF for safe methods
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    // Skip CSRF for auth endpoints (login/register — no session yet)
+    if (req.path.startsWith('/api/auth/') || req.path === '/api/register') return next();
+
+    const cookieToken = req.cookies && req.cookies[CSRF_COOKIE_NAME];
+    const headerToken = req.headers['x-csrf-token'];
+
+    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+        return res.status(403).json({ success: false, error: 'CSRF token mismatch. Please refresh and try again.' });
+    }
+    next();
+}
+
+// --- Audit Logger ---
+function auditLog(adminId, action, resource, details = {}) {
+    if (!db.get('auditLog').value()) db.set('auditLog', []).write();
+    db.get('auditLog').push({
+        id: uuidv4(),
+        adminId,
+        action,    // e.g. 'create', 'update', 'delete', 'login', 'logout'
+        resource,  // e.g. 'tenant', 'property', 'payment', 'session'
+        details,   // e.g. { unit: '101', tenantName: 'John' }
+        timestamp: new Date().toISOString()
+    }).write();
+}
+
+// --- Pagination Helper ---
+function paginate(array, page = 1, limit = 50) {
+    const p = Math.max(1, parseInt(page) || 1);
+    const l = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const total = array.length;
+    const totalPages = Math.ceil(total / l);
+    const start = (p - 1) * l;
+    const data = array.slice(start, start + l);
+    return { data, page: p, limit: l, total, totalPages };
+}
+
 // Serve Static Files (public/ only — never serve project root)
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -118,8 +257,11 @@ app.get('/login', (req, res) => {
 });
 
 // --- Authentication (OTP via Telegram using DB) ---
-// Generate random 6-digit code
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+// Generate cryptographically random 6-digit code
+const generateOTP = () => {
+    const num = crypto.randomInt(100000, 999999);
+    return num.toString();
+};
 
 // 1. Request OTP
 app.post('/api/auth/request', rateLimiter, async (req, res) => {
@@ -146,12 +288,12 @@ app.post('/api/auth/request', rateLimiter, async (req, res) => {
     const code = generateOTP();
     const expiresAt = addMinutes(new Date(), 10).toISOString();
     
-    // Store in DB
-    // Remove old OTPs for this admin
+    // Store hashed OTP in DB (plaintext sent via Telegram only)
+    const hashedCode = hashOTP(code);
     db.get('otps').remove({ telegramId: admin.telegramId }).write();
-    db.get('otps').push({ telegramId: admin.telegramId, code, expiresAt }).write();
+    db.get('otps').push({ telegramId: admin.telegramId, code: hashedCode, expiresAt }).write();
 
-    console.log(`🔑 Generated OTP: ${code} for Admin: ${admin.name} (${admin.telegramId})`);
+    console.log(`🔑 OTP sent to Admin: ${admin.name}`);
 
     // Send it via Telegram
     try {
@@ -200,21 +342,25 @@ app.post('/api/auth/verify', rateLimiter, (req, res) => {
         return res.status(401).json({ success: false, error: "Too many failed attempts. Please request a new code." });
     }
 
-    if (record.code === code) {
-        // Success! Clear the OTP and issue a generic token
+    if (record.code === hashOTP(code)) {
+        // Success! Clear the OTP and issue a session token via HttpOnly cookie
         db.get('otps').remove({ telegramId: admin.telegramId }).write();
-        
+
         // Generate a new Session Token
         const sessionToken = uuidv4();
         const sessionExpires = addMinutes(new Date(), 60 * 24).toISOString(); // 24 hour session
-        
+
         db.get('sessions').push({
             token: sessionToken,
             adminId: admin.id,
             expiresAt: sessionExpires
         }).write();
 
-        res.json({ success: true, token: sessionToken });
+        res.cookie(COOKIE_NAME, sessionToken, cookieOptions);
+        // Issue CSRF token cookie (readable by JS for double-submit)
+        res.cookie(CSRF_COOKIE_NAME, generateCsrfToken(), csrfCookieOptions);
+        auditLog(admin.id, 'login', 'session', { username: admin.username });
+        res.json({ success: true });
     } else {
         // Track failed attempt
         db.get('otps').find({ telegramId: admin.telegramId }).assign({ attempts }).write();
@@ -225,12 +371,17 @@ app.post('/api/auth/verify', rateLimiter, (req, res) => {
 
 // --- Auth Middleware ---
 const authenticateAdmin = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader) {
+    // Read token from HttpOnly cookie first, fall back to Authorization header
+    let token = req.cookies && req.cookies[COOKIE_NAME];
+    if (!token) {
+        const authHeader = req.headers['authorization'];
+        if (authHeader) token = authHeader.split(' ')[1];
+    }
+
+    if (!token) {
         return res.status(401).json({ success: false, error: "Missing authorization token." });
     }
 
-    const token = authHeader.split(' ')[1]; // Format: "Bearer token..."
     const session = db.get('sessions').find({ token }).value();
 
     if (!session) {
@@ -263,6 +414,25 @@ const authenticateSuperAdmin = (req, res, next) => {
     });
 };
 
+// --- Auth Check & Logout ---
+app.get('/api/auth/check', authenticateAdmin, (req, res) => {
+    // Refresh CSRF token on every auth check (page load)
+    res.cookie(CSRF_COOKIE_NAME, generateCsrfToken(), csrfCookieOptions);
+    res.json({ success: true, admin: { name: req.admin.name, username: req.admin.username } });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    const token = req.cookies && req.cookies[COOKIE_NAME];
+    if (token) {
+        const session = db.get('sessions').find({ token }).value();
+        if (session) auditLog(session.adminId, 'logout', 'session');
+        db.get('sessions').remove({ token }).write();
+    }
+    res.clearCookie(COOKIE_NAME, { path: '/' });
+    res.clearCookie(CSRF_COOKIE_NAME, { path: '/' });
+    res.json({ success: true });
+});
+
 // --- Super Admin Endpoints ---
 app.get('/super', (req, res) => {
     res.sendFile(path.join(__dirname, '../super.html'));
@@ -270,8 +440,7 @@ app.get('/super', (req, res) => {
 
 // Generate a new invite code
 app.post('/api/super/invites', authenticateSuperAdmin, (req, res) => {
-    // Math.random base 36 generates strings like "0.7b93k..." we substring to get "7B93K2"
-    const code = 'INV-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const code = 'INV-' + generateSecureCode(8);
     
     // Store it in the DB
     if (!db.get('invites').value()) db.set('invites', []).write();
@@ -285,7 +454,31 @@ app.post('/api/super/invites', authenticateSuperAdmin, (req, res) => {
     };
     
     db.get('invites').push(invite).write();
+    auditLog(req.admin.id, 'create', 'invite', { code: invite.code });
     res.json({ success: true, invite });
+});
+
+// View audit log (super admin only, paginated)
+app.get('/api/super/audit-log', authenticateSuperAdmin, (req, res) => {
+    const logs = (db.get('auditLog').value() || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (req.query.page) {
+        return res.json(paginate(logs, req.query.page, req.query.limit));
+    }
+    // Default: return last 100 entries
+    res.json(logs.slice(0, 100));
+});
+
+// View filtered audit log for current landlord (paginated)
+app.get('/api/audit-log', authenticateAdmin, (req, res) => {
+    const logs = (db.get('auditLog').value() || [])
+        .filter(log => log.adminId === req.admin.id)
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    if (req.query.page) {
+        return res.json(paginate(logs, req.query.page, req.query.limit));
+    }
+    // Default: return last 50 entries
+    res.json(logs.slice(0, 50));
 });
 
 // List all invite codes
@@ -303,6 +496,14 @@ app.post('/api/register', (req, res) => {
 
     if (!code || !name || !username) {
         return res.status(400).json({ success: false, error: 'All fields are required.' });
+    }
+
+    if (!validateString(name, MAX_SHORT_STRING)) {
+        return res.status(400).json({ success: false, error: 'Name must be 1-100 characters.' });
+    }
+
+    if (!validateString(username, 50) || !/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json({ success: false, error: 'Username must be 1-50 alphanumeric characters.' });
     }
 
     // Check if invite exists and is active
@@ -342,13 +543,14 @@ app.post('/api/register', (req, res) => {
 
 // --- API Endpoints ---
 
-// Helper: Generate 6-char alphanumeric code
-const generateLinkCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
+// Helper: Generate 6-char alphanumeric code (crypto-secure)
+const generateLinkCode = () => generateSecureCode(6);
 
 // Helper: Parse ID from URL param (supports legacy numeric + new UUID)
-const parseId = (id) => /^\d+$/.test(id) ? parseInt(id) : id;
+// --- ID Resolver ---
+// (Already defined at line 150)
 
-// Get all tenants
+// Get all tenants (paginated)
 app.get('/api/tenants', authenticateAdmin, (req, res) => {
     let tenants = db.get('tenants').filter({ adminId: req.admin.id }).value() || [];
     let updated = false;
@@ -364,12 +566,41 @@ app.get('/api/tenants', authenticateAdmin, (req, res) => {
 
     if (updated) db.get('tenants').assign(tenants).write();
 
+    // Support pagination via ?page=&limit= (default: return all for backward compat)
+    if (req.query.page) {
+        const result = paginate(tenants, req.query.page, req.query.limit);
+        return res.json(result);
+    }
     res.json(tenants);
 });
 
 // Create a new tenant
 app.post('/api/tenants', authenticateAdmin, (req, res) => {
     const tenant = req.body;
+
+    // Input validation
+    if (!tenant.unit || !validateString(tenant.unit, 50)) {
+        return res.status(400).json({ success: false, error: 'Unit is required (max 50 chars).' });
+    }
+    if (!tenant.name || !validateString(tenant.name, MAX_SHORT_STRING)) {
+        return res.status(400).json({ success: false, error: 'Tenant name is required (max 100 chars).' });
+    }
+    if (!validateEmail(tenant.email)) {
+        return res.status(400).json({ success: false, error: 'Invalid email format.' });
+    }
+    if (!validatePhone(tenant.phone)) {
+        return res.status(400).json({ success: false, error: 'Invalid phone format.' });
+    }
+    if (tenant.leaseAmount && !validatePositiveNumber(tenant.leaseAmount)) {
+        return res.status(400).json({ success: false, error: 'Lease amount must be a positive number.' });
+    }
+    if (tenant.advancePayment && !validatePositiveNumber(tenant.advancePayment)) {
+        return res.status(400).json({ success: false, error: 'Advance payment must be a positive number.' });
+    }
+    if (tenant.securityDeposit && !validatePositiveNumber(tenant.securityDeposit)) {
+        return res.status(400).json({ success: false, error: 'Security deposit must be a positive number.' });
+    }
+
     // Check if unit already exists for THIS admin
     const existing = db.get('tenants').find({ unit: tenant.unit, adminId: req.admin.id }).value();
     if (existing) {
@@ -385,6 +616,7 @@ app.post('/api/tenants', authenticateAdmin, (req, res) => {
     tenant.adminId = req.admin.id; // Assign to current admin
 
     db.get('tenants').push(tenant).write();
+    auditLog(req.admin.id, 'create', 'tenant', { unit: tenant.unit, name: tenant.name });
     res.json({ success: true, tenant });
 });
 
@@ -399,6 +631,7 @@ app.put('/api/tenants/:unit', authenticateAdmin, (req, res) => {
     if (updates.securityDeposit) updates.securityDeposit = parseFloat(updates.securityDeposit);
 
     db.get('tenants').find({ unit, adminId: req.admin.id }).assign(updates).write();
+    auditLog(req.admin.id, 'update', 'tenant', { unit });
     res.json({ success: true, message: `Unit ${unit} updated.` });
 });
 
@@ -413,19 +646,23 @@ app.delete('/api/tenants/:unit', authenticateAdmin, (req, res) => {
     // Cascade delete related historical data to prevent ghost records for the next tenant
     db.get('payments').remove({ unit, adminId: req.admin.id }).write();
     db.get('tickets').remove({ unit, adminId: req.admin.id }).write();
+    auditLog(req.admin.id, 'delete', 'tenant', { unit });
     res.json({ success: true, message: `Unit ${unit} and associated records deleted.` });
 });
 
-// Get all tickets (tenant concerns)
+// Get all tickets (paginated)
 app.get('/api/tickets', authenticateAdmin, (req, res) => {
     const tickets = db.get('tickets').filter({ adminId: req.admin.id }).value() || [];
+    if (req.query.page) {
+        return res.json(paginate(tickets, req.query.page, req.query.limit));
+    }
     res.json(tickets);
 });
 
 // Forward ticket to fixer
 app.post('/api/tickets/:id/forward', authenticateAdmin, (req, res) => {
     const { id } = req.params;
-    const ticket = db.get('tickets').find({ id: parseId(id), adminId: req.admin.id }).value();
+    const ticket = db.get('tickets').find({ id: resolveId(id), adminId: req.admin.id }).value();
     
     const settings = db.get('settings').find({ adminId: req.admin.id }).value() || {};
 
@@ -451,23 +688,26 @@ app.post('/api/tickets/:id/forward', authenticateAdmin, (req, res) => {
         });
     }
 
-    db.get('tickets').find({ id: parseId(id), adminId: req.admin.id }).assign({ status: 'forwarded' }).write();
+    db.get('tickets').find({ id: resolveId(id), adminId: req.admin.id }).assign({ status: 'forwarded' }).write();
+    auditLog(req.admin.id, 'forward', 'ticket', { id: resolveId(id), unit: ticket.unit });
     res.json({ success: true, message: `Ticket #${id} forwarded to maintenance.` });
 });
 
 // Update ticket status (partial update)
 app.put('/api/tickets/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
+    const targetId = resolveId(id);
     const updates = req.body;
-    const ticketId = parseId(id);
+    console.log(`📝 Ticket Update [${targetId}]:`, updates);
 
-    const ticket = db.get('tickets').find({ id: ticketId, adminId: req.admin.id }).value();
+    const ticket = db.get('tickets').find({ id: targetId, adminId: req.admin.id }).value();
     if (!ticket) {
-        return res.status(404).json({ success: false, error: 'Ticket not found' });
+        return res.status(404).json({ success: false, error: "Ticket not found." });
     }
 
-    db.get('tickets').find({ id: ticketId, adminId: req.admin.id }).assign(updates).write();
-    res.json({ success: true, message: `Ticket ${ticketId} updated successfully.` });
+    db.get('tickets').find({ id: targetId, adminId: req.admin.id }).assign(updates).write();
+    auditLog(req.admin.id, 'update', 'ticket', { id: targetId, status: updates.status });
+    res.json({ success: true, message: `Ticket ${targetId} updated successfully.` });
 });
 
 // Get settings
@@ -485,16 +725,27 @@ app.post('/api/settings', authenticateAdmin, (req, res) => {
     } else {
         db.get('settings').push(newSettings).write();
     }
+    auditLog(req.admin.id, 'update', 'settings', {});
     res.json({ success: true, message: "Settings updated successfully." });
 });
 
 // --- Properties Endpoints ---
 app.get('/api/properties', authenticateAdmin, (req, res) => {
     const properties = db.get('properties').filter({ adminId: req.admin.id }).value() || [];
+    if (req.query.page) {
+        return res.json(paginate(properties, req.query.page, req.query.limit));
+    }
     res.json(properties);
 });
 
 app.post('/api/properties', authenticateAdmin, (req, res) => {
+    if (!req.body.name || !validateString(req.body.name, MAX_SHORT_STRING)) {
+        return res.status(400).json({ success: false, error: 'Property name is required (max 100 chars).' });
+    }
+    if (req.body.address && !validateString(req.body.address, 200)) {
+        return res.status(400).json({ success: false, error: 'Address too long (max 200 chars).' });
+    }
+
     const property = {
         id: uuidv4(),
         adminId: req.admin.id, // Assign to current admin
@@ -502,39 +753,43 @@ app.post('/api/properties', authenticateAdmin, (req, res) => {
         status: req.body.status || 'Active'
     };
     db.get('properties').push(property).write();
+    auditLog(req.admin.id, 'create', 'property', { name: property.name, id: property.id });
     res.json({ success: true, property });
 });
 
 app.put('/api/properties/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
     const updates = req.body;
-    const targetId = id; // Don't parseId for UUIDs
-    console.log(`📝 Update Request for Property ID: ${targetId}`, updates);
+    const targetId = resolveId(id);
+    console.log(`📝 Update Request: id=${id}, targetId=${targetId} (${typeof targetId}), adminId=${req.admin.id} (${typeof req.admin.id})`);
 
-    const property = db.get('properties').find({ id: targetId, adminId: req.admin.id }).value();
+    const property = db.get('properties').value().find(p => String(p.id) === String(targetId) && String(p.adminId) === String(req.admin.id));
     if (!property) {
-        console.error(`❌ Property not found: ${targetId}`);
+        console.error(`❌ Property not found: targetId=${targetId} (${typeof targetId}), adminId=${req.admin.id}`);
+        const allProps = db.get('properties').filter({ adminId: req.admin.id }).value();
+        console.log(`📂 Available props for admin:`, allProps.map(p => ({ id: p.id, type: typeof p.id })));
         return res.status(404).json({ success: false, error: 'Property not found' });
     }
 
-    db.get('properties').find({ id: targetId, adminId: req.admin.id }).assign(updates).write();
-    console.log(`✅ Property ${targetId} updated successfully.`);
+    // Use regular find for assign().write() chain
+    db.get('properties').find(p => String(p.id) === String(targetId) && String(p.adminId) === String(req.admin.id)).assign(updates).write();
+    auditLog(req.admin.id, 'update', 'property', { id: targetId });
     res.json({ success: true, message: `Property ${targetId} updated.` });
 });
 
 app.delete('/api/properties/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
-    const targetId = id; // Don't parseId for UUIDs
+    const targetId = resolveId(id);
     console.log(`🗑️ Delete Request for Property ID: ${targetId}`);
 
-    const property = db.get('properties').find({ id: targetId, adminId: req.admin.id }).value();
+    const property = db.get('properties').value().find(p => String(p.id) === String(targetId) && String(p.adminId) === String(req.admin.id));
     if (!property) {
         console.error(`❌ Property not found: ${targetId}`);
         return res.status(404).json({ success: false, error: 'Property not found' });
     }
 
     db.get('properties').remove({ id: targetId, adminId: req.admin.id }).write();
-    console.log(`✅ Property ${targetId} deleted successfully.`);
+    auditLog(req.admin.id, 'delete', 'property', { id: targetId });
     res.json({ success: true, message: `Property ${targetId} deleted.` });
 });
 
@@ -542,11 +797,21 @@ app.delete('/api/properties/:id', authenticateAdmin, (req, res) => {
 
 app.get('/api/payments', authenticateAdmin, (req, res) => {
     const payments = db.get('payments').filter({ adminId: req.admin.id }).value() || [];
+    if (req.query.page) {
+        return res.json(paginate(payments, req.query.page, req.query.limit));
+    }
     res.json(payments);
 });
 
 // Add a manual payment log
 app.post('/api/payments', authenticateAdmin, (req, res) => {
+    if (req.body.amount !== undefined && !validatePositiveNumber(req.body.amount)) {
+        return res.status(400).json({ success: false, error: 'Amount must be a positive number.' });
+    }
+    if (req.body.notes && !validateString(req.body.notes, MAX_STRING_LENGTH)) {
+        return res.status(400).json({ success: false, error: 'Notes too long (max 500 chars).' });
+    }
+
     const payment = {
         id: uuidv4(),
         adminId: req.admin.id,
@@ -555,26 +820,27 @@ app.post('/api/payments', authenticateAdmin, (req, res) => {
         timestamp: new Date().toISOString(),
         ...req.body
     };
-    
+
     if (payment.amount) payment.amount = parseFloat(payment.amount);
 
     db.get('payments').push(payment).write();
+    auditLog(req.admin.id, 'create', 'payment', { id: payment.id, unit: payment.unit, amount: payment.amount });
     res.json({ success: true, payment });
 });
 
 app.post('/api/payments/:id/verify', authenticateAdmin, (req, res) => {
     const { id } = req.params;
-    const payment = db.get('payments').find({ id: parseId(id), adminId: req.admin.id }).value();
+    const payment = db.get('payments').find({ id: resolveId(id), adminId: req.admin.id }).value();
 
     if (payment) {
         const { amount } = req.body;
         let updateData = { status: 'verified' };
         
-        // If an amount is provided in the request, use it. Otherwise, use existing or fallback.
+        const tenant = db.get('tenants').find({ unit: payment.unit, adminId: req.admin.id }).value();
+
         if (amount !== undefined && amount !== null) {
             updateData.amount = parseFloat(amount);
         } else if (!payment.amount) {
-            const tenant = db.get('tenants').find({ unit: payment.unit, adminId: req.admin.id }).value();
             if (tenant && tenant.leaseAmount) {
                 updateData.amount = tenant.leaseAmount;
             } else {
@@ -582,10 +848,13 @@ app.post('/api/payments/:id/verify', authenticateAdmin, (req, res) => {
             }
         }
 
-        db.get('payments').find({ id: parseId(id), adminId: req.admin.id }).assign(updateData).write();
+        if (tenant && tenant.propertyId) {
+            updateData.propertyId = tenant.propertyId;
+        }
+
+        db.get('payments').find({ id: resolveId(id), adminId: req.admin.id }).assign(updateData).write();
 
         // Notify tenant via Telegram
-        const tenant = db.get('tenants').find({ unit: payment.unit, adminId: req.admin.id }).value();
         if (tenant && tenant.telegramId) {
             bot.telegram.sendMessage(
                 tenant.telegramId,
@@ -593,6 +862,7 @@ app.post('/api/payments/:id/verify', authenticateAdmin, (req, res) => {
             ).catch(err => console.error("Failed to notify tenant:", err));
         }
 
+        auditLog(req.admin.id, 'verify', 'payment', { id: resolveId(id), unit: payment.unit });
         res.json({ success: true, message: 'Payment verified' });
     } else {
         res.status(404).json({ error: 'Payment not found' });
@@ -602,10 +872,11 @@ app.post('/api/payments/:id/verify', authenticateAdmin, (req, res) => {
 // --- Payment Deletion ---
 app.delete('/api/payments/:paymentId', authenticateAdmin, (req, res) => {
     const { paymentId } = req.params;
-    const paymentExists = db.get('payments').find({ id: parseId(paymentId), adminId: req.admin.id }).value();
+    const paymentExists = db.get('payments').find({ id: resolveId(paymentId), adminId: req.admin.id }).value();
 
     if (paymentExists) {
-        db.get('payments').remove({ id: parseId(paymentId), adminId: req.admin.id }).write();
+        db.get('payments').remove({ id: resolveId(paymentId), adminId: req.admin.id }).write();
+        auditLog(req.admin.id, 'delete', 'payment', { id: resolveId(paymentId) });
         res.json({ success: true, message: 'Payment deleted successfully' });
     } else {
         res.status(404).json({ error: 'Payment not found' });
@@ -615,26 +886,38 @@ app.delete('/api/payments/:paymentId', authenticateAdmin, (req, res) => {
 // --- Expense Endpoints ---
 app.get('/api/expenses', authenticateAdmin, (req, res) => {
     const expenses = db.get('expenses').filter({ adminId: req.admin.id }).value() || [];
+    if (req.query.page) {
+        return res.json(paginate(expenses, req.query.page, req.query.limit));
+    }
     res.json(expenses);
 });
 
 app.post('/api/expenses', authenticateAdmin, (req, res) => {
+    if (req.body.amount !== undefined && !validatePositiveNumber(req.body.amount)) {
+        return res.status(400).json({ success: false, error: 'Amount must be a positive number.' });
+    }
+    if (req.body.description && !validateString(req.body.description, MAX_STRING_LENGTH)) {
+        return res.status(400).json({ success: false, error: 'Description too long (max 500 chars).' });
+    }
+
     const expense = {
         id: uuidv4(),
         adminId: req.admin.id,
         timestamp: new Date().toISOString(),
         ...req.body
     };
-    
+
     if (expense.amount) expense.amount = parseFloat(expense.amount);
 
     db.get('expenses').push(expense).write();
+    auditLog(req.admin.id, 'create', 'expense', { id: expense.id, amount: expense.amount });
     res.json({ success: true, expense });
 });
 
 app.delete('/api/expenses/:id', authenticateAdmin, (req, res) => {
     const { id } = req.params;
-    db.get('expenses').remove({ id: parseId(id), adminId: req.admin.id }).write();
+    db.get('expenses').remove({ id: resolveId(id), adminId: req.admin.id }).write();
+    auditLog(req.admin.id, 'delete', 'expense', { id: resolveId(id) });
     res.json({ success: true });
 });
 
@@ -674,7 +957,7 @@ app.get('/api/finance/summary', authenticateAdmin, (req, res) => {
 // --- Telegram Media Proxy ---
 // Converts Telegram fileId → displayable image/video URL for the dashboard
 // Uses direct Telegram HTTP API (no bot.launch() needed)
-app.get('/api/media/:fileId', async (req, res) => {
+app.get('/api/media/:fileId', authenticateAdmin, async (req, res) => {
     try {
         const { fileId } = req.params;
 
@@ -699,7 +982,7 @@ app.get('/api/media/:fileId', async (req, res) => {
 
         const contentType = fileRes.headers.get('content-type') || 'application/octet-stream';
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24h
+        res.setHeader('Cache-Control', 'private, max-age=86400'); // Cache for 24h, private only
         fileRes.body.pipe(res);
     } catch (err) {
         console.error('Media proxy error:', err.message);
@@ -711,6 +994,11 @@ app.get('/api/media/:fileId', async (req, res) => {
 app.post('/api/message/:unit', authenticateAdmin, async (req, res) => {
     const { unit } = req.params;
     const { message } = req.body;
+
+    if (!message || !validateString(message, 2000)) {
+        return res.status(400).json({ error: 'Message is required (max 2000 chars).' });
+    }
+
     const tenant = db.get('tenants').find({ unit, adminId: req.admin.id }).value();
 
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });

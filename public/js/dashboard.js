@@ -1,14 +1,23 @@
-        // Security: Redirect to login if unauthenticated
-        if (!localStorage.getItem('landlordhq_token')) {
-            window.location.replace('/login');
-        }
-        
+        // Security: Redirect to login if unauthenticated (cookie-based)
+        fetch('/api/auth/check', { credentials: 'include' })
+            .then(r => { if (!r.ok) window.location.replace('/login'); })
+            .catch(() => window.location.replace('/login'));
+
         // Logout handler
         function logout() {
-            localStorage.removeItem('landlordhq_token');
-            window.location.replace('/login');
+            fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+                .finally(() => window.location.replace('/login'));
         }
         const API_URL = '/api';
+
+        // --- CSRF Helper: read token from cookie, attach to state-changing requests ---
+        function getCsrfToken() {
+            const match = document.cookie.match(/(?:^|;\s*)landlordhq_csrf=([^;]+)/);
+            return match ? match[1] : '';
+        }
+        function csrfHeaders() {
+            return { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() };
+        }
 
         // --- XSS Sanitizer: use esc() on ALL dynamic values in innerHTML ---
         function esc(str) {
@@ -26,6 +35,7 @@
         const ITEMS_PER_PAGE = 10;
         let currentPropertiesPage = 1;
         let currentTenantsPage = 1;
+        let currentLogsPage = 1;
 
         // --- Navigation ---
         function showSection(id, el) {
@@ -37,8 +47,14 @@
                 document.getElementById('payments-section').classList.add('active');
             }
 
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            if (el) el.classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(i => {
+                i.classList.remove('active');
+                i.removeAttribute('aria-current');
+            });
+            if (el) {
+                el.classList.add('active');
+                el.setAttribute('aria-current', 'page');
+            }
 
             const titles = {
                 dashboard: { i: 'fas fa-th-large', t: 'Dashboard', st: 'Real-time unit pulse and occupancy grid' },
@@ -48,7 +64,8 @@
                 support: { t: 'Support Hub', st: 'Manage tenant tickets and maintenance requests', i: 'fas fa-headset' },
                 finance: { t: 'Financial Hub', st: 'Real-time revenue, expenses, and transaction logs', i: 'fas fa-chart-pie' },
                 settings: { i: 'fas fa-cog', t: 'System Configuration', st: 'Customize reminder logic and bot behavior' },
-                docs: { i: 'fas fa-book', t: 'Command Documentation', st: 'Reference guide for available Telegram tenant commands' }
+                docs: { i: 'fas fa-book', t: 'Command Documentation', st: 'Reference guide for available Telegram tenant commands' },
+                logs: { i: 'fas fa-history', t: 'Activity Logs', st: 'Full audit trail of administrative actions' }
             };
 
             const headerIcon = document.getElementById('page-title-icon');
@@ -78,6 +95,7 @@
                 refreshFinanceHub();
                 refreshDashboard();
             }
+            if (id === 'logs') refreshLogs();
             if (id === 'dashboard' || id === 'support') refreshDashboard();
         }
 
@@ -198,7 +216,7 @@
 
             try {
                 const res = await fetch(`${API_URL}/properties?t=${Date.now()}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` }
+                    credentials: 'include'
                 });
                 const properties = await res.json();
                 const select = document.getElementById('tenant-property');
@@ -239,7 +257,7 @@
             if (originalUnit) {
                 try {
                     const existingRes = await fetch(`${API_URL}/tenants?t=${Date.now()}`, {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` }
+                        credentials: 'include'
                     });
                     const tenantsList = await existingRes.json();
                     const existingT = tenantsList.find(t => t.unit === originalUnit);
@@ -249,10 +267,9 @@
                     openConfirmModal('Save Changes', 'Are you sure you want to update this tenant?', 'info', async () => {
                         try {
                             const res = await fetch(`${API_URL}/tenants/${originalUnit}`, {
-                                method: 'PUT',
+                                method: 'PUT', credentials: 'include',
                                 headers: { 
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                                    ...csrfHeaders(),
                                 },
                                 body: JSON.stringify(data)
                             });
@@ -270,10 +287,9 @@
             } else {
                 try {
                     const res = await fetch(`${API_URL}/tenants`, {
-                        method: 'POST',
+                        method: 'POST', credentials: 'include',
                         headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                            ...csrfHeaders(),
                         },
                         body: JSON.stringify(data)
                     });
@@ -292,8 +308,8 @@
         async function editTenant(unit) {
             try {
                 const [tenantRes, propRes] = await Promise.all([
-                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } }),
-                    fetch(`${API_URL}/properties?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } })
+                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { credentials: 'include' }),
+                    fetch(`${API_URL}/properties?t=${Date.now()}`, { credentials: 'include' })
                 ]);
                 const tenants = await tenantRes.json();
                 const properties = await propRes.json();
@@ -334,8 +350,7 @@
             openConfirmModal('Delete Tenant', 'Are you sure you want to remove this tenant?', 'danger', async () => {
                 try {
                     const res = await fetch(`${API_URL}/tenants/${unit}`, { 
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` }
+                        method: 'DELETE', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken() }
                     });
                     if (res.ok) {
                         openConfirmModal('Deleted!', 'Tenant has been removed.', 'success');
@@ -350,11 +365,60 @@
         }
 
 
+        async function changeLogsPage(delta) {
+            currentLogsPage += delta;
+            await refreshLogs(currentLogsPage);
+        }
+
+        async function refreshLogs(page = 1) {
+            currentLogsPage = page;
+            const res = await fetch(`${API_URL}/audit-log?page=${page}&limit=${ITEMS_PER_PAGE}`, { credentials: 'include' });
+            if (!res.ok) return;
+            const { data, total, page: p, totalPages } = await res.json();
+
+            const tbody = document.getElementById('logs-table-body');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">No logs found.</td></tr>';
+            } else {
+                tbody.innerHTML = data.map(log => {
+                    const date = new Date(log.timestamp);
+                    const actionClass = log.action === 'delete' ? 'text-danger' : log.action === 'create' ? 'text-success' : 'text-info';
+                    const icon = log.action === 'delete' ? 'fa-trash' : log.action === 'create' ? 'fa-plus' : 'fa-edit';
+                    
+                    return `
+                        <tr>
+                            <td>
+                                <div style="font-weight: 500;">${date.toLocaleDateString()}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">${date.toLocaleTimeString()}</div>
+                            </td>
+                            <td>
+                                <span class="badge ${actionClass}" style="text-transform: capitalize;">
+                                    <i class="fas ${icon}" style="margin-right: 4px;"></i> ${log.action}
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-family: var(--font-mono); font-size: 0.85rem; background: var(--off-white); padding: 2px 6px; border-radius: 4px;">${log.resource}</span>
+                            </td>
+                            <td>
+                                <div style="font-size: 0.85rem; color: var(--text-main); max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title='${JSON.stringify(log.details)}'>
+                                    ${Object.entries(log.details).map(([k,v]) => `<strong>${k}</strong>: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(', ')}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('logs-pagination-info').innerText = `Showing ${data.length} of ${total} logs`;
+            document.getElementById('logs-prev-btn').disabled = (p <= 1);
+            document.getElementById('logs-next-btn').disabled = (p >= totalPages);
+        }
+
         async function refreshTenants() {
             try {
                 const [tenantRes, propRes] = await Promise.all([
-                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } }),
-                    fetch(`${API_URL}/properties?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } })
+                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { credentials: 'include' }),
+                    fetch(`${API_URL}/properties?t=${Date.now()}`, { credentials: 'include' })
                 ]);
                 const tenants = await tenantRes.json();
                 const properties = await propRes.json();
@@ -594,10 +658,9 @@
                 openConfirmModal('Save Changes', 'Are you sure you want to update this property?', 'info', async () => {
                     try {
                         const res = await fetch(`${API_URL}/properties/${id}`, {
-                            method: 'PUT',
+                            method: 'PUT', credentials: 'include',
                             headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                                ...csrfHeaders(),
                             },
                             body: JSON.stringify(data)
                         });
@@ -615,10 +678,9 @@
                 openConfirmModal('Create Property', 'Are you sure you want to add this new property?', 'info', async () => {
                     try {
                         const res = await fetch(`${API_URL}/properties`, {
-                            method: 'POST',
+                            method: 'POST', credentials: 'include',
                             headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                                ...csrfHeaders(),
                             },
                             body: JSON.stringify(data)
                         });
@@ -635,7 +697,7 @@
         async function editProperty(id) {
             try {
                 const res = await fetch(`${API_URL}/properties?t=${Date.now()}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` }
+                    credentials: 'include'
                 });
                 const properties = await res.json();
                 const p = properties.find(prop => prop.id == id);
@@ -664,8 +726,7 @@
             openConfirmModal('Delete Property', 'Are you sure you want to delete this building? This action is permanent.', 'danger', async () => {
                 try {
                     const res = await fetch(`${API_URL}/properties/${id}`, { 
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` }
+                        method: 'DELETE', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken() }
                     });
                     if (res.ok) {
                         openConfirmModal('Deleted!', 'Building has been removed from the portfolio.', 'success');
@@ -742,8 +803,8 @@
         async function refreshProperties() {
             try {
                 const [propRes, tenantRes] = await Promise.all([
-                    fetch(`${API_URL}/properties?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } }),
-                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } })
+                    fetch(`${API_URL}/properties?t=${Date.now()}`, { credentials: 'include' }),
+                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { credentials: 'include' })
                 ]);
                 const properties = await propRes.json();
                 const tenants = await tenantRes.json();
@@ -759,8 +820,8 @@
         async function showPropertyDetail(id) {
             try {
                 const [propRes, tenantRes] = await Promise.all([
-                    fetch(`${API_URL}/properties?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } }),
-                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } })
+                    fetch(`${API_URL}/properties?t=${Date.now()}`, { credentials: 'include' }),
+                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { credentials: 'include' })
                 ]);
                 const properties = await propRes.json();
                 const tenants = await tenantRes.json();
@@ -863,22 +924,21 @@
             try {
                 const today = new Date();
                 const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
-                const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` };
+                const fetchOpts = { credentials: 'include' };
 
                 // Check auth first with a single request to avoid redirect loops
-                const authCheck = await fetch(`${API_URL}/tenants`, { headers: authHeaders });
+                const authCheck = await fetch(`${API_URL}/tenants`, fetchOpts);
                 if (authCheck.status === 401) {
-                    localStorage.removeItem('landlordhq_token');
                     window.location.replace('/login');
                     return;
                 }
                 const rawTenants = await authCheck.json();
 
                 const [rawTickets, rawPayments, rawSettings, rawProperties] = await Promise.all([
-                    fetch(`${API_URL}/tickets`, { headers: authHeaders }).then(r => r.ok ? r.json() : []),
-                    fetch(`${API_URL}/payments`, { headers: authHeaders }).then(r => r.ok ? r.json() : []),
-                    fetch(`${API_URL}/settings`, { headers: authHeaders }).then(r => r.ok ? r.json() : {}),
-                    fetch(`${API_URL}/properties?t=${Date.now()}`, { headers: authHeaders }).then(r => r.ok ? r.json() : [])
+                    fetch(`${API_URL}/tickets`, fetchOpts).then(r => r.ok ? r.json() : []),
+                    fetch(`${API_URL}/payments`, fetchOpts).then(r => r.ok ? r.json() : []),
+                    fetch(`${API_URL}/settings`, fetchOpts).then(r => r.ok ? r.json() : {}),
+                    fetch(`${API_URL}/properties?t=${Date.now()}`, fetchOpts).then(r => r.ok ? r.json() : [])
                 ]);
 
                 // Defensive: ensure arrays are arrays, settings is an object
@@ -1083,7 +1143,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${recentResolvedTickets.slice(0, 5).map(tk => {
+                                    ${recentResolvedTickets.slice(0, 3).map(tk => {
                                         return `
                                         <tr style="border-bottom: 1px solid var(--border);">
                                             <td style="padding: 12px 0; font-weight: 600;">Unit ${tk.unit}</td>
@@ -1118,9 +1178,9 @@
                                         </div>
                                         <span class="status-pill pill-warning" style="font-size: 0.70rem;">Pending Review</span>
                                     </div>
+                                    ${p.fileId ? `<div style="margin: 10px 0;">${renderMedia(p.fileId, p.mediaType || 'photo')}</div>` : ''}
                                     <div class="card-title" style="margin-bottom: 5px; font-size: 1.05rem;">${esc(t.name)}</div>
                                     <div class="card-meta" style="margin-bottom: 15px;"><i class="fas fa-clock"></i> Submitted: ${new Date(p.timestamp).toLocaleString()}</div>
-                                    ${p.fileId ? renderMedia(p.fileId, p.mediaType || 'photo') : ''}
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px; margin-top: 20px;">
                                     <button class="btn btn-primary" style="flex: 1;" onclick="verifyPayment('${esc(p.unit)}', '${p.id || ''}')">
@@ -1137,36 +1197,60 @@
 
                 // --- Render Support ---
                 const tickGrid = document.getElementById('tickets-list');
+                const resolvedSection = document.getElementById('resolved-tickets-section');
+                const resolvedBody = document.getElementById('resolved-tickets-body');
+
                 if (tickGrid) {
-                    tickGrid.innerHTML = tickets.length > 0 ? '' : '<p style="color:var(--text-muted); grid-column: 1/-1; text-align: center; padding: 40px;">No active support tickets.</p>';
-                    tickets.forEach(tk => {
+                    const openTickets = tickets.filter(tk => tk.status !== 'closed');
+                    const closedTickets = tickets.filter(tk => tk.status === 'closed').sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                    // --- Open tickets: card grid (existing layout) ---
+                    tickGrid.innerHTML = openTickets.length > 0
+                        ? ''
+                        : '<p style="color:var(--text-muted); grid-column: 1/-1; text-align: center; padding: 40px;">No active support tickets.</p>';
+
+                    openTickets.forEach(tk => {
                         const t = tenants.find(ten => String(ten.unit) === String(tk.unit)) || { name: 'Unknown' };
                         tickGrid.innerHTML += `
                         <div class="card">
                             <div class="card-body">
                                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px;">
                                     <div class="unit-number">UNIT ${tk.unit}</div>
-                                    <span class="status-pill ${tk.status === 'open' ? 'pill-danger' : 'pill-success'}">${tk.status === 'closed' ? 'Closed' : 'Open'}</span>
+                                    <span class="status-pill pill-danger">Open</span>
                                 </div>
                                 <div class="card-title">${esc(t.name)}</div>
                                 <div class="card-meta"><i class="fas fa-clock"></i> ${new Date(tk.timestamp).toLocaleString()}</div>
-                                <p style="font-size:0.95rem; line-height:1.6; color:var(--text-main); margin-bottom:20px;">${tk.issue}</p>
-                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <div style="display: flex; flex-direction: column; gap: 10px; margin: 12px 0;">
                                     ${tk.media && tk.media.length > 0 ? tk.media.map(m => renderMedia(m.fileId, m.type)).join('') : (tk.fileId ? renderMedia(tk.fileId, tk.mediaType || 'photo') : '')}
                                 </div>
-                                <div class="ticket-checklist" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px; ${tk.reported && tk.status === 'closed' ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                                <p style="font-size:0.95rem; line-height:1.6; color:var(--text-main); margin-bottom:20px;">${tk.issue}</p>
+                                <div class="ticket-checklist" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
                                     <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer; color: var(--text-main);">
                                         <input type="checkbox" id="chk-rep-${tk.id}" ${tk.reported ? 'checked' : ''} onchange="handleTicketCheck(this, '${tk.id}', 'reported')" style="width: 18px; height: 18px; cursor: pointer;">
                                         Reported to Fixer
                                     </label>
                                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-main);">
-                                        <input type="checkbox" id="chk-res-${tk.id}" ${tk.status === 'closed' ? 'checked' : ''} onchange="handleTicketCheck(this, '${tk.id}', 'status')" style="width: 18px; height: 18px; cursor: pointer;">
+                                        <input type="checkbox" id="chk-res-${tk.id}" onchange="handleTicketCheck(this, '${tk.id}', 'status')" style="width: 18px; height: 18px; cursor: pointer;">
                                         Issue Resolved (Done)
                                     </label>
                                 </div>
                             </div>
                         </div>`;
                     });
+
+                    // --- Closed tickets: resolved table ---
+                    // Store closed tickets data for sorting
+                    window._closedTickets = closedTickets;
+                    window._tenants = tenants;
+                    if (resolvedSection && resolvedBody) {
+                        if (closedTickets.length === 0) {
+                            resolvedSection.style.display = 'none';
+                        } else {
+                            resolvedSection.style.display = 'block';
+                            // Re-apply current sort state so polling doesn't reset user's sort
+                            applyResolvedSort();
+                        }
+                    }
                 }
 
                 // Settings
@@ -1185,6 +1269,87 @@
                     }
                 }
             } catch (err) { console.error('Data refresh error:', err); }
+        }
+
+        // --- Resolved Tickets Rendering & Sorting ---
+        function renderResolvedRows(closedTickets, tenants) {
+            const resolvedBody = document.getElementById('resolved-tickets-body');
+            if (!resolvedBody) return;
+            resolvedBody.innerHTML = closedTickets.map(tk => {
+                const t = tenants.find(ten => String(ten.unit) === String(tk.unit)) || { name: 'Unknown' };
+                const date = new Date(tk.timestamp);
+                const hasMedia = (tk.media && tk.media.length > 0) || tk.fileId;
+                let mediaHtml = '-';
+                if (tk.media && tk.media.length > 0) {
+                    const m = tk.media[0];
+                    const src = `${API_URL}/media/${m.fileId}`;
+                    mediaHtml = `<button class="btn-icon" onclick="openLightbox('${m.type || 'photo'}', '${src}')" title="View Attachment" style="background: rgba(239,68,68,0.1); color: var(--danger); padding: 5px; border-radius: 6px; cursor: pointer; border: none;"><i class="fas fa-${(m.type || 'photo') === 'video' ? 'video' : 'image'}"></i>${tk.media.length > 1 ? ' +' + (tk.media.length - 1) : ''}</button>`;
+                } else if (tk.fileId) {
+                    const src = `${API_URL}/media/${tk.fileId}`;
+                    mediaHtml = `<button class="btn-icon" onclick="openLightbox('${tk.mediaType || 'photo'}', '${src}')" title="View Attachment" style="background: rgba(239,68,68,0.1); color: var(--danger); padding: 5px; border-radius: 6px; cursor: pointer; border: none;"><i class="fas fa-${(tk.mediaType || 'photo') === 'video' ? 'video' : 'image'}"></i></button>`;
+                }
+                return `
+                <tr style="border-bottom: 1px solid var(--border);" data-timestamp="${tk.timestamp}" data-unit="${esc(String(tk.unit))}" data-tenant="${esc(t.name)}" data-issue="${esc(tk.issue)}">
+                    <td style="padding: 12px 16px; color: var(--text-muted); white-space: nowrap;">
+                        <div style="font-weight: 500; color: var(--text-main);">${date.toLocaleDateString()}</div>
+                        <div style="font-size: 0.78rem;">${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                    </td>
+                    <td style="padding: 12px 16px; font-weight: 600;">Unit ${esc(String(tk.unit))}</td>
+                    <td style="padding: 12px 16px;">${esc(t.name)}</td>
+                    <td style="padding: 12px 16px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${esc(tk.issue)}">${esc(tk.issue)}</td>
+                    <td style="padding: 12px 16px; text-align: center;">${mediaHtml}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Track current sort state
+        window._resolvedSortCol = 'date';
+        window._resolvedSortDir = 'desc';
+
+        // Core sort + render (used by both header clicks and polling refresh)
+        function applyResolvedSort() {
+            const tickets = window._closedTickets;
+            const tenants = window._tenants;
+            if (!tickets || !tenants) return;
+
+            const col = window._resolvedSortCol;
+            const dir = window._resolvedSortDir === 'asc' ? 1 : -1;
+            const sorted = [...tickets].sort((a, b) => {
+                if (col === 'date') return dir * (new Date(a.timestamp) - new Date(b.timestamp));
+                if (col === 'unit') return dir * String(a.unit).localeCompare(String(b.unit), undefined, {numeric: true});
+                if (col === 'tenant') {
+                    const tA = (tenants.find(t => String(t.unit) === String(a.unit)) || {name: ''}).name;
+                    const tB = (tenants.find(t => String(t.unit) === String(b.unit)) || {name: ''}).name;
+                    return dir * tA.localeCompare(tB);
+                }
+                if (col === 'issue') return dir * (a.issue || '').localeCompare(b.issue || '');
+                return 0;
+            });
+
+            renderResolvedRows(sorted, tenants);
+
+            // Update header icons
+            document.querySelectorAll('#resolved-tickets-table thead th[data-sort]').forEach(th => {
+                const icon = th.querySelector('i');
+                if (th.dataset.sort === col) {
+                    icon.className = window._resolvedSortDir === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                    icon.style.opacity = '1';
+                } else {
+                    icon.className = 'fas fa-sort';
+                    icon.style.opacity = '0.4';
+                }
+            });
+        }
+
+        // Header click handler: toggle direction, then apply
+        function sortResolvedTickets(col) {
+            if (window._resolvedSortCol === col) {
+                window._resolvedSortDir = window._resolvedSortDir === 'desc' ? 'asc' : 'desc';
+            } else {
+                window._resolvedSortCol = col;
+                window._resolvedSortDir = col === 'date' ? 'desc' : 'asc';
+            }
+            applyResolvedSort();
         }
 
         // --- Verifications ---
@@ -1217,10 +1382,9 @@
             openConfirmModal('Verify Payment', 'Are you sure you want to verify this payment? The tenant will be notified.', 'info', async () => {
                 try {
                     const res = await fetch(`${API_URL}/payments/${paymentId}/verify`, {
-                        method: 'POST',
+                        method: 'POST', credentials: 'include',
                         headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                            ...csrfHeaders(),
                         },
                         body: JSON.stringify({ unit, amount })
                     });
@@ -1228,6 +1392,7 @@
                     if (res.ok) {
                         openConfirmModal('Verified!', 'Payment verified and notification sent to tenant.', 'success');
                         closeVerifyPaymentModal();
+                        refreshFinanceHub();
                         refreshDashboard();
                     } else {
                         const err = await res.json();
@@ -1288,10 +1453,9 @@
                 const updates = {};
                 updates[field] = value;
                 await fetch(`${API_URL}/tickets/${id}`, {
-                    method: 'PUT',
+                    method: 'PUT', credentials: 'include',
                     headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                        ...csrfHeaders(),
                     },
                     body: JSON.stringify(updates)
                 });
@@ -1303,10 +1467,9 @@
                 const updates = {};
                 updates[field] = value;
                 const res = await fetch(`${API_URL}/tickets/${id}`, {
-                    method: 'PUT',
+                    method: 'PUT', credentials: 'include',
                     headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                        ...csrfHeaders(),
                     },
                     body: JSON.stringify(updates)
                 });
@@ -1337,10 +1500,9 @@
             openConfirmModal('Save Settings', 'Are you sure you want to update the system settings?', 'info', async () => {
                 try {
                     const res = await fetch(`${API_URL}/settings`, {
-                        method: 'POST',
+                        method: 'POST', credentials: 'include',
                         headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                            ...csrfHeaders(),
                         },
                         body: JSON.stringify(settings)
                     });
@@ -1352,32 +1514,43 @@
         // Search Filter Logic
         document.getElementById('global-search').addEventListener('input', function(e) {
             const query = e.target.value.toLowerCase();
-            const activeSection = document.querySelector('.content-section.active').id;
+            const activeSection = document.querySelector('.content-section.active')?.id;
+
+            // Helper: reset visibility of all matching elements
+            const showAll = (selector) => document.querySelectorAll(selector).forEach(el => el.style.display = '');
+            // Helper: filter elements by text content; display is the value to set when visible
+            const filter = (selector, display = '') =>
+                document.querySelectorAll(selector).forEach(el => {
+                    el.style.display = el.innerText.toLowerCase().includes(query) ? display : 'none';
+                });
 
             if (activeSection === 'properties-section') {
-                const cards = document.querySelectorAll('#properties-grid .card');
-                cards.forEach(card => {
-                    const text = card.innerText.toLowerCase();
-                    card.style.display = text.includes(query) ? 'block' : 'none';
-                });
+                if (!query) { showAll('#properties-grid .card'); return; }
+                filter('#properties-grid .card', 'block');
+
             } else if (activeSection === 'tenants-section') {
-                const rows = document.querySelectorAll('#tenants-table-body tr');
-                rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(query) ? '' : 'none';
-                });
+                if (!query) { showAll('#tenants-table-body tr'); return; }
+                filter('#tenants-table-body tr', '');
+
             } else if (activeSection === 'support-section') {
-                const tickets = document.querySelectorAll('#tickets-list .card');
-                tickets.forEach(ticket => {
-                    const text = ticket.innerText.toLowerCase();
-                    ticket.style.display = text.includes(query) ? 'block' : 'none';
-                });
-            } else if (activeSection === 'payments-section') {
-                const payments = document.querySelectorAll('#payments-list .card');
-                payments.forEach(payment => {
-                    const text = payment.innerText.toLowerCase();
-                    payment.style.display = text.includes(query) ? 'block' : 'none';
-                });
+                if (!query) {
+                    showAll('#tickets-list .card');
+                    showAll('#resolved-tickets-body tr');
+                    return;
+                }
+                filter('#tickets-list .card', 'block');
+                filter('#resolved-tickets-body tr', '');
+
+            } else if (activeSection === 'finance-section' || activeSection === 'payments-section') {
+                if (!query) {
+                    showAll('#payments-history-body tr');
+                    showAll('#expenses-body tr');
+                    showAll('#finance-upcoming-body tr');
+                    return;
+                }
+                filter('#payments-history-body tr', '');
+                filter('#expenses-body tr', '');
+                filter('#finance-upcoming-body tr', '');
             }
         });
 
@@ -1385,9 +1558,9 @@
         async function refreshFinanceHub() {
             try {
                 const [payRes, expRes, sumRes] = await Promise.all([
-                    fetch(`${API_URL}/payments?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } }),
-                    fetch(`${API_URL}/expenses?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } }),
-                    fetch(`${API_URL}/finance/summary?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` } })
+                    fetch(`${API_URL}/payments?t=${Date.now()}`, { credentials: 'include' }),
+                    fetch(`${API_URL}/expenses?t=${Date.now()}`, { credentials: 'include' }),
+                    fetch(`${API_URL}/finance/summary?t=${Date.now()}`, { credentials: 'include' })
                 ]);
                 
                 const payments = await payRes.json();
@@ -1474,9 +1647,15 @@
                 const src = p.fileId ? `${API_URL}/media/${p.fileId}` : null;
                 const receiptHtml = src ? `<button class="btn-icon" onclick="openLightbox('${p.mediaType || 'photo'}', '${src}')" title="View Receipt" style="background: rgba(43, 122, 255, 0.1); color: var(--primary); padding: 5px; border-radius: 6px; cursor: pointer;"><i class="fas fa-receipt"></i></button>` : '-';
                 
-                // Lookup property name via tenant lookup
-                const t = tenants.find(ten => String(ten.unit) === String(p.unit));
-                const pName = t && t.propertyId ? ((properties.find(prop => String(prop.id) === String(t.propertyId)) || {}).name || 'Unassigned') : 'Unassigned';
+                // Improved property name resolution: Prioritize stored propertyId, then fallback to tenant lookup
+                let property = properties.find(prop => String(prop.id) === String(p.propertyId));
+                if (!property) {
+                    const t = tenants.find(ten => String(ten.unit) === String(p.unit));
+                    if (t && t.propertyId) {
+                        property = properties.find(prop => String(prop.id) === String(t.propertyId));
+                    }
+                }
+                const pName = property ? property.name : 'Unassigned';
                 
                 tbody.innerHTML += `
                     <tr>
@@ -1541,8 +1720,7 @@
             openConfirmModal('Delete Payment', `Are you sure you want to delete the payment log for ${name || 'this tenant'}? This will also deduct the amount from your total collection.`, 'danger', async () => {
                 try {
                     const res = await fetch(`${API_URL}/payments/${id}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` }
+                        method: 'DELETE', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken() }
                     });
                     if (res.ok) {
                         openConfirmModal('Deleted!', 'Payment record has been removed.', 'success');
@@ -1557,8 +1735,7 @@
             openConfirmModal('Delete Expense', `Are you sure you want to delete the expense record: ${category}?`, 'danger', async () => {
                 try {
                     const res = await fetch(`${API_URL}/expenses/${id}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` }
+                        method: 'DELETE', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken() }
                     });
                     if (res.ok) {
                         openConfirmModal('Deleted!', 'Expense record has been removed.', 'success');
@@ -1633,7 +1810,7 @@
             } else {
                 try {
                     const res = await fetch(`${API_URL}/tenants?t=${Date.now()}`, {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}` }
+                        credentials: 'include'
                     });
                     const tenants = await res.json();
                     window.tenantData = tenants; // cache it
@@ -1668,6 +1845,7 @@
             const data = {
                 unit: unit,
                 tenantName: tenant ? tenant.name : 'Unknown',
+                propertyId: tenant ? tenant.propertyId : null,
                 amount: parseFloat(document.getElementById('payment-amount').value),
                 method: document.getElementById('payment-method').value,
                 notes: document.getElementById('payment-notes').value
@@ -1676,10 +1854,9 @@
             openConfirmModal('Log Payment', `Log a manual payment of ₱${data.amount.toLocaleString(undefined, {minimumFractionDigits: 2})} for ${data.tenantName}?`, 'info', async () => {
                 try {
                     const res = await fetch(`${API_URL}/payments`, {
-                        method: 'POST',
+                        method: 'POST', credentials: 'include',
                         headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                            ...csrfHeaders(),
                         },
                         body: JSON.stringify(data)
                     });
@@ -1687,6 +1864,7 @@
                         openConfirmModal('Success', 'Manual payment logged successfully.', 'success');
                         closePaymentModal();
                         refreshFinanceHub();
+                        refreshDashboard();
                     }
                 } catch (err) { console.error(err); }
             });
@@ -1703,10 +1881,9 @@
             openConfirmModal('Log Expense', `Log an expense of ₱${data.amount.toLocaleString(undefined, {minimumFractionDigits: 2})} for ${data.category}?`, 'info', async () => {
                 try {
                     const res = await fetch(`${API_URL}/expenses`, {
-                        method: 'POST',
+                        method: 'POST', credentials: 'include',
                         headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('landlordhq_token')}`
+                            ...csrfHeaders(),
                         },
                         body: JSON.stringify(data)
                     });
@@ -1714,6 +1891,7 @@
                         openConfirmModal('Success', 'Expense logged successfully.', 'success');
                         closeExpenseModal();
                         refreshFinanceHub();
+                        refreshDashboard();
                     }
                 } catch (err) { console.error(err); }
             });
@@ -1731,4 +1909,17 @@
         setInterval(updateLiveClock, 1000);
         updateLiveClock();
 
-        setInterval(refreshDashboard, 10000);
+        // Smart background refresh — only polls data relevant to the currently active section.
+        // Reads active section from the DOM (same source used by the search filter) to avoid
+        // introducing redundant state. Skips expensive fetches when on static tabs (Settings/Docs/Logs).
+        function smartRefresh() {
+            const activeId = document.querySelector('.content-section.active')?.id;
+            if (activeId === 'dashboard-section' || activeId === 'support-section') {
+                refreshDashboard();
+            } else if (activeId === 'payments-section' || activeId === 'finance-section') {
+                refreshFinanceHub();
+                refreshDashboard(); // keeps stat cards in sync
+            }
+            // properties, tenants, settings, docs, logs: no background refresh needed
+        }
+        setInterval(smartRefresh, 10000);
