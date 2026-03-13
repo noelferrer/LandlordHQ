@@ -8,7 +8,7 @@
 module.exports = {
   apps: [
     {
-      name: 'landlordhq-server',
+      name: 'landlordhq-dashboard',
       script: 'src/server.js',
       cwd: '/var/www/landlordhq',
       instances: 1,
@@ -18,8 +18,8 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
       },
-      error_file: '/var/log/landlordhq/server-error.log',
-      out_file:   '/var/log/landlordhq/server-out.log',
+      error_file: '/var/log/landlordhq/dashboard-error.log',
+      out_file:   '/var/log/landlordhq/dashboard-out.log',
       merge_logs: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
