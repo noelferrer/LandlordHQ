@@ -804,6 +804,11 @@
             .confirm-card { width: 95%; padding: 20px; }
 
             .card-body { padding: 16px; }
+
+            /* Settings: collapse 2-col to 1-col on small screens */
+            #settings-section > div:first-child {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         /* --- Skip Link (accessibility) --- */
@@ -1042,8 +1047,11 @@
                         <p class="page-subtitle" id="page-subtitle-text">Real-time unit pulse and occupancy grid</p>
                     </div>
                 </div>
-                <div class="header-tools">
-                    <!-- Quick Action removed as per user feedback/Vibecode screenshot -->
+                <div class="header-tools" style="text-align: right;">
+                    <div id="header-datetime" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                        <div id="header-date" style="font-weight: 600; color: var(--text-main);"></div>
+                        <div id="header-time" style="font-family: var(--font-mono);"></div>
+                    </div>
                 </div>
             </header>
 
@@ -1118,8 +1126,9 @@
                                     <i class="fas fa-exclamation-circle"></i>
                                 </div>
                                 <span style="font-weight: 600; font-size: 1.1rem;">Overdue Payments</span>
+                                <div id="dash-overdue-count-pill" class="status-pill pill-danger" style="display: none;">0 Unpaid</div>
                             </div>
-                            <div id="dash-overdue-count-pill" class="status-pill pill-danger" style="display: none;">0 Unpaid</div>
+                            <a href="#" onclick="showSection('finance', document.querySelectorAll('.nav-item')[3]); window.scrollTo(0,0); return false;" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 500;">See more <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i></a>
                         </div>
                         <div id="dash-overdue-list" style="overflow-x: auto;">
                             <!-- Dynamic list of overdue tenants will be rendered here -->
@@ -1137,16 +1146,14 @@
                                     <i class="fas fa-clock"></i>
                                 </div>
                                 <span style="font-weight: 600; font-size: 1.1rem;">Pending Verification</span>
+                                <div id="dash-pending-verif-pill" class="status-pill pill-warning" style="display: none;">0 Pending</div>
                             </div>
-                            <div id="dash-pending-verif-pill" class="status-pill pill-warning" style="display: none;">0 Pending</div>
+                            <a href="#" onclick="showSection('finance', document.querySelectorAll('.nav-item')[3]); window.scrollTo(0,0); return false;" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 500;">Go to Financials <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i></a>
                         </div>
                         <div id="dash-pending-verif-list">
                             <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
                                 No pending verifications.
                             </div>
-                        </div>
-                        <div style="margin-top: 16px; text-align: right;">
-                            <a href="#" onclick="showSection('finance', document.querySelectorAll('.nav-item')[3]); window.scrollTo(0,0); return false;" style="color: var(--primary); font-size: 0.85rem; text-decoration: none; font-weight: 500;">Go to Financials <i class="fas fa-arrow-right" style="font-size: 0.75rem;"></i></a>
                         </div>
                     </div>
                 </div>
@@ -1391,13 +1398,43 @@
                         </div>
                     </div>
 
+                    <!-- Overdue Payments (Finance) -->
+                    <div class="card" style="padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                </div>
+                                <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Overdue Payments</h3>
+                                <span id="finance-overdue-pill" class="status-pill pill-danger" style="display:none;">0 Unpaid</span>
+                            </div>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th>Tenant</th>
+                                        <th>Property &amp; Unit</th>
+                                        <th>Lease Amount</th>
+                                        <th>Due Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="finance-overdue-body">
+                                    <tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted)">No overdue payments.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Transaction History -->
                     <div class="card" style="padding: 24px;">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-                            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(43, 122, 255, 0.1); color: var(--electric); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-                                <i class="fas fa-history"></i>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(43, 122, 255, 0.1); color: var(--electric); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Transaction History</h3>
                             </div>
-                            <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Transaction History</h3>
                         </div>
                         <div style="overflow-x: auto;">
                             <table id="payments-history-table" style="width: 100%; border-collapse: collapse;">
@@ -1414,15 +1451,18 @@
                                 <tbody id="payments-history-body"></tbody>
                             </table>
                         </div>
+                        <div id="history-pagination" style="margin-top: 16px;"></div>
                     </div>
 
                     <!-- Expense Log -->
                     <div class="card" style="padding: 24px;">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-                            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(244, 63, 94, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-                                <i class="fas fa-receipt"></i>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(244, 63, 94, 0.1); color: var(--danger); display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                                    <i class="fas fa-receipt"></i>
+                                </div>
+                                <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Expense Log</h3>
                             </div>
-                            <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">Expense Log</h3>
                         </div>
                         <div style="overflow-x: auto;">
                             <table id="expenses-table" style="width: 100%; border-collapse: collapse;">
@@ -1438,6 +1478,7 @@
                                 <tbody id="expenses-body"></tbody>
                             </table>
                         </div>
+                        <div id="expense-pagination" style="margin-top: 16px;"></div>
                     </div>
                 </div>
             </div>
@@ -1578,14 +1619,15 @@
             </section>
 
             <section id="settings-section" class="content-section" aria-label="System configuration">
-                <div class="card" style="max-width: 900px; padding: 30px;">
-                    <div style="margin-bottom: 30px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+                    <!-- Left: Core Parameters -->
+                    <div class="card" style="padding: 30px;">
                         <h3 style="font-size: 1.1rem; color: var(--primary); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
                             <i class="fas fa-sliders-h"></i> Core Parameters
                         </h3>
-                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Fundamental settings for how the bot interacts with your properties.</p>
-                        
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">Fundamental settings for how the bot interacts with your properties.</p>
+
+                        <div style="display: flex; flex-direction: column; gap: 20px;">
                             <div class="input-group">
                                 <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">Rent Reminder Day</label>
                                 <div style="position: relative;">
@@ -1615,29 +1657,28 @@
                         </div>
                     </div>
 
-                    <hr style="border: none; border-top: 1px solid var(--border); margin: 30px 0;">
-
-                    <div style="margin-bottom: 30px;">
+                    <!-- Right: Message Customization -->
+                    <div class="card" style="padding: 30px;">
                         <h3 style="font-size: 1.1rem; color: var(--primary); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
                             <i class="fas fa-comment-dots"></i> Message Customization
                         </h3>
-                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Tailor the automated responses sent to your tenants.</p>
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">Tailor the automated responses sent to your tenants.</p>
 
-                        <div style="display: grid; gap: 24px;">
+                        <div style="display: flex; flex-direction: column; gap: 20px;">
                             <div style="background: var(--bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border);">
                                 <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">
                                     <span>Welcome Message <span style="color: var(--primary); font-family: monospace; font-size: 0.85rem; margin-left: 8px; background: rgba(99, 102, 241, 0.1); padding: 2px 6px; border-radius: 4px;">/start</span></span>
                                 </label>
                                 <textarea id="start-text" rows="3" style="width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; resize: vertical; line-height: 1.5; outline: none;" placeholder="Welcome to Landlord HQ. Enter /help for more commands."></textarea>
                             </div>
-                            
+
                             <div style="background: var(--bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border);">
                                 <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">
                                     <span>House Rules <span style="color: var(--primary); font-family: monospace; font-size: 0.85rem; margin-left: 8px; background: rgba(99, 102, 241, 0.1); padding: 2px 6px; border-radius: 4px;">/rules</span></span>
                                 </label>
-                                <textarea id="rules-text" rows="5" style="width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; resize: vertical; line-height: 1.5; outline: none;" placeholder="1. No loud music after 10 PM.&#10;2. Proper waste disposal required."></textarea>
+                                <textarea id="rules-text" rows="4" style="width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 12px; font-family: inherit; resize: vertical; line-height: 1.5; outline: none;" placeholder="1. No loud music after 10 PM.&#10;2. Proper waste disposal required."></textarea>
                             </div>
-                            
+
                             <div style="background: var(--bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border);">
                                 <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">
                                     <span>Clearance Process <span style="color: var(--primary); font-family: monospace; font-size: 0.85rem; margin-left: 8px; background: rgba(99, 102, 241, 0.1); padding: 2px 6px; border-radius: 4px;">/clearance</span></span>
@@ -1646,12 +1687,13 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div style="display: flex; justify-content: flex-end;">
-                        <button class="btn btn-primary" onclick="saveSettings()" style="width: auto; padding: 14px 30px; font-size: 1rem; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
-                            <i class="fas fa-save"></i> Save Configuration
-                        </button>
-                    </div>
+                <!-- Single Save Button -->
+                <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+                    <button class="btn btn-primary" onclick="saveSettings()" style="width: auto; padding: 14px 36px; font-size: 1rem; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+                        <i class="fas fa-save"></i> Save Configuration
+                    </button>
                 </div>
             </section>
 

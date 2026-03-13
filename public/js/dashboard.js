@@ -38,6 +38,11 @@
         let currentTenantsPage = 1;
         let currentLogsPage = 1;
         let currentResolvedPage = 1;
+        let currentHistoryPage = 1;
+        let currentExpensePage = 1;
+        // Cached sorted arrays for paginated finance tables
+        window._sortedHistory = [];
+        window._sortedExpenses = [];
 
         // --- Navigation ---
         function showSection(id, el) {
@@ -213,12 +218,22 @@
             document.getElementById('tenant-form').reset();
 
             try {
-                const res = await fetch(`${API_URL}/properties?t=${Date.now()}`, {
-                    credentials: 'include'
-                });
-                const properties = await res.json();
+                const [propRes, tenRes] = await Promise.all([
+                    fetch(`${API_URL}/properties?t=${Date.now()}`, { credentials: 'include' }),
+                    fetch(`${API_URL}/tenants?t=${Date.now()}`, { credentials: 'include' })
+                ]);
+                const properties = await propRes.json();
+                const tenants = await tenRes.json();
                 const select = document.getElementById('tenant-property');
-                select.innerHTML = properties.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+                select.innerHTML = properties.map(p => {
+                    const maxUnits = parseInt(p.units) || 0;
+                    const occupied = tenants.filter(t => String(t.propertyId) === String(p.id)).length;
+                    const isFull = maxUnits > 0 && occupied >= maxUnits;
+                    return `<option value="${p.id}" ${isFull ? 'disabled' : ''}>${esc(p.name)}${isFull ? ' (Full)' : ''}${maxUnits > 0 ? ` — ${occupied}/${maxUnits}` : ''}</option>`;
+                }).join('');
+                // If the first option is disabled, find first non-disabled
+                const firstEnabled = select.querySelector('option:not([disabled])');
+                if (firstEnabled) firstEnabled.selected = true;
             } catch (e) {
                 console.error('Failed to load properties for dropdown', e);
             }
@@ -337,9 +352,14 @@
                 document.getElementById('tenant-remarks').value = t.remarks || '';
 
                 const select = document.getElementById('tenant-property');
-                select.innerHTML = properties.map(p =>
-                    `<option value="${p.id}" ${String(p.id) === String(t.propertyId) ? 'selected' : ''}>${esc(p.name)}</option>`
-                ).join('');
+                select.innerHTML = properties.map(p => {
+                    const isCurrent = String(p.id) === String(t.propertyId);
+                    const maxUnits = parseInt(p.units) || 0;
+                    // For edit: count tenants in that property excluding the tenant being edited
+                    const occupied = tenants.filter(ten => String(ten.propertyId) === String(p.id) && ten.unit !== t.unit).length;
+                    const isFull = !isCurrent && maxUnits > 0 && occupied >= maxUnits;
+                    return `<option value="${p.id}" ${isCurrent ? 'selected' : ''} ${isFull ? 'disabled' : ''}>${esc(p.name)}${isFull ? ' (Full)' : ''}${maxUnits > 0 ? ` — ${occupied + (isCurrent ? 1 : 0)}/${maxUnits}` : ''}</option>`;
+                }).join('');
 
                 document.getElementById('tenant-modal').style.display = 'flex';
             } catch (err) { console.error('Edit tenant lookup error:', err); }
@@ -1026,7 +1046,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${overdueTenants.slice(0, 5).map(t => {
+                                    ${overdueTenants.slice(0, 3).map(t => {
                                         const pName = t.propertyId ? ((properties.find(prop => String(prop.id) === String(t.propertyId)) || {}).name || 'Unassigned') : 'Unassigned';
                                         const dueDate = new Date(today.getFullYear(), today.getMonth(), t.rent_due_day || 1);
                                         return `
@@ -1101,14 +1121,28 @@
                     } else {
                         const recent3 = pendingPayments.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 3);
                         pendVerifList.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                                    <th style="padding-bottom: 10px; font-weight: 600;">Tenant</th>
+                                    <th style="padding-bottom: 10px; font-weight: 600;">Unit</th>
+                                    <th style="padding-bottom: 10px; font-weight: 600; text-align: right;">Submitted</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                             ${recent3.map(p => {
                                 const pt = tenants.find(ten => ten.unit === p.unit) || { name: 'Unknown' };
+                                const submittedDate = p.timestamp ? new Date(p.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                                const submittedTime = p.timestamp ? new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                                 return `<tr style="border-bottom: 1px solid var(--border);">
-                                    <td style="padding:8px 4px; font-weight:500;">${esc(pt.name)}</td>
-                                    <td style="padding:8px 4px; color:var(--text-muted);">Unit ${esc(p.unit)}</td>
-                                    <td style="padding:8px 4px; text-align:right; color:var(--warning); font-weight:600;">${currencySymbol}${Number(p.amount || 0).toLocaleString()}</td>
+                                    <td style="padding:10px 4px; font-weight:600;">${esc(pt.name)}</td>
+                                    <td style="padding:10px 4px; color:var(--text-muted);">Unit ${esc(p.unit)}</td>
+                                    <td style="padding:10px 4px; text-align:right; color:var(--text-muted); font-size:0.82rem;">
+                                        <div>${submittedDate}</div>
+                                        <div style="color:var(--text-muted); opacity:0.7;">${submittedTime}</div>
+                                    </td>
                                 </tr>`;
                             }).join('')}
+                            </tbody>
                         </table>
                         ${pendingPayments.length > 3 ? `<div style="text-align:center; padding:8px; color:var(--text-muted); font-size:0.8rem;">+${pendingPayments.length - 3} more pending</div>` : ''}`;
                     }
@@ -1182,7 +1216,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${pendingTickets.slice(0, 5).map(tk => {
+                                    ${pendingTickets.slice(0, 3).map(tk => {
                                         return `
                                         <tr style="border-bottom: 1px solid var(--border);">
                                             <td style="padding: 12px 0; font-weight: 600;">Unit ${tk.unit}</td>
@@ -1629,6 +1663,7 @@
                 renderPaymentsHistory(payments, window.tenantData || [], window.propertyData || []);
                 renderExpenses(expenses);
                 renderFinanceUpcoming(window.tenantData || [], window.propertyData || [], payments);
+                renderFinanceOverdue(window.tenantData || [], window.propertyData || [], payments);
                 updateFinanceSummary(summary);
             } catch (err) { console.error('Finance refresh error:', err); }
         }
@@ -1688,40 +1723,47 @@
         }
 
         function renderPaymentsHistory(payments, tenants, properties) {
-            const tbody = document.getElementById('payments-history-body');
-            if(!tbody) return;
-            tbody.innerHTML = '';
-            
-            // Set explicit default sort flag so chronological toggle works correctly
-            tbody.setAttribute('data-sort-dir', 'desc');
-            
-            // Only show verified payments or manual ones
             const currencySymbol = window.appSettings.currency || '₱';
             const history = payments.filter(p => p.status === 'verified').sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
+            window._sortedHistory = history;
+            window._historyTenants = tenants;
+            window._historyProperties = properties;
+            currentHistoryPage = 1;
+            renderHistoryPage();
+        }
+
+        function renderHistoryPage() {
+            const tbody = document.getElementById('payments-history-body');
+            if (!tbody) return;
+            const currencySymbol = window.appSettings.currency || '₱';
+            const history = window._sortedHistory || [];
+            const tenants = window._historyTenants || [];
+            const properties = window._historyProperties || [];
+
             if (history.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted)">No transaction history found.</td></tr>';
+                renderPagination('history-pagination', 1, 0, () => {});
                 return;
             }
 
-            history.forEach(p => {
+            const totalPages = Math.ceil(history.length / ITEMS_PER_PAGE);
+            if (currentHistoryPage > totalPages) currentHistoryPage = totalPages;
+            const start = (currentHistoryPage - 1) * ITEMS_PER_PAGE;
+            const pageData = history.slice(start, start + ITEMS_PER_PAGE);
+
+            tbody.innerHTML = '';
+            pageData.forEach(p => {
                 const dateObj = new Date(p.timestamp);
                 const dateStr = dateObj.toLocaleDateString();
                 const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
                 const src = p.fileId ? `${API_URL}/media/${p.fileId}` : null;
                 const receiptHtml = src ? `<button class="btn-icon" onclick="openLightbox('${p.mediaType || 'photo'}', '${src}')" title="View Receipt" style="background: rgba(43, 122, 255, 0.1); color: var(--primary); padding: 5px; border-radius: 6px; cursor: pointer;"><i class="fas fa-receipt"></i></button>` : '-';
-                
-                // Improved property name resolution: Prioritize stored propertyId, then fallback to tenant lookup
                 let property = properties.find(prop => String(prop.id) === String(p.propertyId));
                 if (!property) {
                     const t = tenants.find(ten => String(ten.unit) === String(p.unit));
-                    if (t && t.propertyId) {
-                        property = properties.find(prop => String(prop.id) === String(t.propertyId));
-                    }
+                    if (t && t.propertyId) property = properties.find(prop => String(prop.id) === String(t.propertyId));
                 }
                 const pName = property ? property.name : (p.propertyName || 'Unassigned');
-                
                 tbody.innerHTML += `
                     <tr>
                         <td>${esc(p.tenantName) || 'Tenant'}</td>
@@ -1748,33 +1790,104 @@
                     </tr>
                 `;
             });
+            renderPagination('history-pagination', currentHistoryPage, totalPages, (page) => {
+                currentHistoryPage = page;
+                renderHistoryPage();
+            });
         }
 
         function renderExpenses(expenses) {
+            const sorted = expenses.slice().sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            window._sortedExpenses = sorted;
+            currentExpensePage = 1;
+            renderExpensePage();
+        }
+
+        function renderExpensePage() {
             const tbody = document.getElementById('expenses-body');
-            if(!tbody) return;
-            tbody.innerHTML = '';
+            if (!tbody) return;
             const currencySymbol = window.appSettings.currency || '₱';
-            
-            // Set explicit default sort flag so chronological toggle works correctly
-            tbody.setAttribute('data-sort-dir', 'desc');
-            
+            const expenses = window._sortedExpenses || [];
+
             if (expenses.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:var(--text-muted)">No expenses recorded.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted)">No expenses recorded.</td></tr>';
+                renderPagination('expense-pagination', 1, 0, () => {});
                 return;
             }
 
-            expenses.slice().sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(e => {
+            const totalPages = Math.ceil(expenses.length / ITEMS_PER_PAGE);
+            if (currentExpensePage > totalPages) currentExpensePage = totalPages;
+            const start = (currentExpensePage - 1) * ITEMS_PER_PAGE;
+            const pageData = expenses.slice(start, start + ITEMS_PER_PAGE);
+
+            tbody.innerHTML = '';
+            pageData.forEach(e => {
                 tbody.innerHTML += `
                     <tr>
                         <td>${esc(e.category)}</td>
                         <td style="font-weight:600; color:var(--danger); font-family:var(--font-mono)">${currencySymbol}${e.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                         <td style="color:var(--text-muted); font-size:0.9rem">${esc(e.description) || '—'}</td>
-                        <td style="color:var(--text-muted); font-size:0.85rem">${new Date(e.timestamp).toLocaleDateString()}</td>
+                        <td style="color:var(--text-muted); font-size:0.85rem">
+                            <div>${new Date(e.timestamp).toLocaleDateString()}</div>
+                            <div style="font-size:0.75rem; opacity:0.7;">${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </td>
                         <td style="text-align: right;">
                             <button class="btn-outline" style="width: 32px; height: 32px; padding: 0; border: none; color: var(--danger); cursor: pointer;" onclick="deleteExpense('${e.id}', '${esc(e.category)}')">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            renderPagination('expense-pagination', currentExpensePage, totalPages, (page) => {
+                currentExpensePage = page;
+                renderExpensePage();
+            });
+        }
+
+        function renderFinanceOverdue(tenants, properties, payments) {
+            const tbody = document.getElementById('finance-overdue-body');
+            const pill = document.getElementById('finance-overdue-pill');
+            if (!tbody) return;
+            const currencySymbol = window.appSettings.currency || '₱';
+
+            const today = new Date();
+            const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
+            const verifiedPayments = payments.filter(p => p.status === 'verified');
+
+            const overdue = tenants.filter(t => {
+                if (t.status === 'Inactive') return false;
+                const dueDay = parseInt(t.rent_due_day || 1);
+                const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+                const overdueThreshold = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000);
+                const hasPaid = verifiedPayments.some(p => p.unit === t.unit && new Date(p.timestamp).getTime() >= currentMonthStart);
+                return !hasPaid && today > overdueThreshold;
+            });
+
+            if (pill) {
+                pill.innerText = `${overdue.length} Unpaid`;
+                pill.style.display = overdue.length > 0 ? 'inline-block' : 'none';
+            }
+
+            if (overdue.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted)">No overdue payments.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            overdue.forEach(t => {
+                const prop = properties.find(p => String(p.id) === String(t.propertyId)) || {};
+                const dueDate = new Date(today.getFullYear(), today.getMonth(), t.rent_due_day || 1);
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight:600">${esc(t.name)}</td>
+                        <td>
+                            <div style="font-weight:500">${esc(prop.name) || 'Unassigned'}</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted)">Unit ${esc(t.unit)}</div>
+                        </td>
+                        <td style="font-weight:600; color:var(--danger); font-family:var(--font-mono)">${currencySymbol}${(parseFloat(t.leaseAmount) || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                        <td style="color:var(--danger); font-weight:600;">
+                            <i class="fas fa-exclamation-triangle"></i> ${dueDate.toLocaleDateString(undefined, {month:'short', day:'numeric'})}
                         </td>
                     </tr>
                 `;
@@ -1812,52 +1925,58 @@
             });
         }
 
+        // Track sort direction per table type
+        window._finSortDir = { history: 'desc', expenses: 'desc', upcoming: 'asc' };
+
         function sortFinanceTable(type, column) {
-            const tableMap = {
-                'upcoming': 'finance-upcoming-body',
-                'history': 'payments-history-body',
-                'expenses': 'expenses-body'
-            };
-            const tbody = document.getElementById(tableMap[type]);
-            if (!tbody) return;
+            const dir = window._finSortDir[type] || 'desc';
+            const nextDir = dir === 'desc' ? 'asc' : 'desc';
+            window._finSortDir[type] = nextDir;
 
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            if (rows.length <= 1) return;
-
-            const isDesc = tbody.getAttribute('data-sort-dir') === 'desc';
-            const colIndex = {
-                'tenant': 0, 'property': 1, 'amount': (type === 'expenses' ? 1 : 2), 'dueDate': 3,
-                'timestamp': 3, 'category': 0
-            }[column] || 0;
-
-            const sorted = rows.sort((a,b) => {
-                let aVal = a.cells[colIndex].innerText.trim();
-                let bVal = b.cells[colIndex].innerText.trim();
-
-                // Numeric sort for amounts
-                if (column === 'amount') {
-                    aVal = parseFloat(aVal.replace(/[^0-9.-]+/g,""));
-                    bVal = parseFloat(bVal.replace(/[^0-9.-]+/g,""));
-                    return isDesc ? aVal - bVal : bVal - aVal;
+            function compareVals(a, b, col) {
+                if (col === 'amount') {
+                    return (parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0);
                 }
+                if (col === 'timestamp' || col === 'dueDate') {
+                    return new Date(a.timestamp || a.dueDate || 0) - new Date(b.timestamp || b.dueDate || 0);
+                }
+                const aStr = String(a[col] || '').toLowerCase();
+                const bStr = String(b[col] || '').toLowerCase();
+                return aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+            }
 
-                // Date sort for dueDate/timestamp: converting values back to Dates for proper numerical mapping if possible.
-                if (column === 'dueDate' || column === 'timestamp') {
-                    // Try to parse as native dates instead of locale string comparison for strict correctness
-                    const d1 = new Date(aVal);
-                    const d2 = new Date(bVal);
-                    if (!isNaN(d1) && !isNaN(d2)) {
-                        return isDesc ? d1.getTime() - d2.getTime() : d2.getTime() - d1.getTime();
+            if (type === 'history') {
+                window._sortedHistory = (window._sortedHistory || []).slice().sort((a, b) => {
+                    const r = compareVals(a, b, column);
+                    return nextDir === 'desc' ? -r : r;
+                });
+                currentHistoryPage = 1;
+                renderHistoryPage();
+            } else if (type === 'expenses') {
+                window._sortedExpenses = (window._sortedExpenses || []).slice().sort((a, b) => {
+                    const r = compareVals(a, b, column);
+                    return nextDir === 'desc' ? -r : r;
+                });
+                currentExpensePage = 1;
+                renderExpensePage();
+            } else if (type === 'upcoming') {
+                // Upcoming is not paginated, just re-render via refreshFinanceHub data
+                const tbody = document.getElementById('finance-upcoming-body');
+                if (!tbody) return;
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                rows.sort((a, b) => {
+                    const aVal = a.cells[column === 'amount' ? 2 : column === 'dueDate' ? 3 : column === 'property' ? 1 : 0]?.innerText.trim() || '';
+                    const bVal = b.cells[column === 'amount' ? 2 : column === 'dueDate' ? 3 : column === 'property' ? 1 : 0]?.innerText.trim() || '';
+                    if (column === 'amount') {
+                        return nextDir === 'desc'
+                            ? parseFloat(bVal.replace(/[^0-9.-]+/g,"")) - parseFloat(aVal.replace(/[^0-9.-]+/g,""))
+                            : parseFloat(aVal.replace(/[^0-9.-]+/g,"")) - parseFloat(bVal.replace(/[^0-9.-]+/g,""));
                     }
-                    return isDesc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-                }
-
-                return isDesc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-            });
-
-            tbody.innerHTML = '';
-            sorted.forEach(r => tbody.appendChild(r));
-            tbody.setAttribute('data-sort-dir', isDesc ? 'asc' : 'desc');
+                    return nextDir === 'desc' ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+                });
+                tbody.innerHTML = '';
+                rows.forEach(r => tbody.appendChild(r));
+            }
         }
 
         function updateFinanceSummary(summary) {
@@ -1988,8 +2107,17 @@
         // Live Clock Initializer
         function updateLiveClock() {
             const now = new Date();
-            document.getElementById('live-time').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            document.getElementById('live-date').innerText = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+            const el = document.getElementById('live-time');
+            if (el) el.innerText = timeStr;
+            const elD = document.getElementById('live-date');
+            if (elD) elD.innerText = dateStr;
+            // Header date/time (top-right corner)
+            const hDate = document.getElementById('header-date');
+            const hTime = document.getElementById('header-time');
+            if (hDate) hDate.innerText = dateStr;
+            if (hTime) hTime.innerText = timeStr;
         }
         setInterval(updateLiveClock, 1000);
         updateLiveClock();
