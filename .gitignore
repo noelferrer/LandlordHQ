@@ -15,4 +15,5 @@ data/db.json
 
 # Logs and Local Tools
 debug.log
+*.log
 .claude/
