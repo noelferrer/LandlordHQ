@@ -270,6 +270,7 @@ const generateOTP = () => {
 
 // 1. Request OTP
 app.post('/api/auth/request', rateLimiter, async (req, res) => {
+    db.read(); // Re-read DB to pick up newly registered admins
     // Determine admin trying to login based on provided username.
     // Note: For multi-client, the frontend needs to send the username.
     // If not provided in req.body.username (which login.html currently doesn't, we will fall back to legacy behavior for now to not break the UI before the UI update, then update it)
@@ -312,9 +313,10 @@ app.post('/api/auth/request', rateLimiter, async (req, res) => {
 
 // 2. Verify OTP
 app.post('/api/auth/verify', rateLimiter, (req, res) => {
+    db.read(); // Re-read DB to pick up newly registered admins
     const { code, username } = req.body;
     let telegramUsername = username;
-    let fallbackOwnerId = process.env.OWNER_TELEGRAM_ID; 
+    let fallbackOwnerId = process.env.OWNER_TELEGRAM_ID;
 
     let admin = null;
     if (telegramUsername) {
@@ -497,6 +499,7 @@ app.get('/signup', (req, res) => res.sendFile(path.join(__dirname, '../signup.ht
 app.get('/register', (req, res) => res.redirect('/signup'));
 
 app.post('/api/register', (req, res) => {
+    db.read(); // Re-read DB to avoid stale state across processes
     const { code, name, username } = req.body;
 
     if (!code || !name || !username) {
